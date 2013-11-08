@@ -4,7 +4,8 @@ import java.net.URI
 case class CreateAgentError(reason: String) extends AgentCRUDResponse
 case class CreateAgentResponse(agentURI: URI) extends AgentCRUDResponse
 
-// Creates an agent.  Does not do anything else, like create a default alias, add email, etc.
+// Creates an agent, setting up the password hash.
+// Does not do anything else, like create a default alias, add email, etc.
 case class CreateAgentRequest(authType : String, authValue : String) extends AgentCRUDRequest {
   import javax.crypto._
   import javax.crypto.spec.SecretKeySpec
@@ -31,12 +32,13 @@ case class CreateAgentRequest(authType : String, authValue : String) extends Age
     (salt, md.digest)
   }
 
-  def handle(key: String, complete: AgentCRUD => Unit): Unit = {
+  def handle(k: AgentCRUDResponse => Unit): Unit = {
     import com.biosimilarity.evaluator.distribution._
     try {
       if (authType != "password") {
         k(CreateAgentError("Only password authentication is currently supported."))
       } else {
+        // hash = SHA(salt + authValue)
         val (salt, hash) = saltAndHash(authValue)
 
         // TODO(mike): explicitly manage randomness pool
@@ -48,8 +50,9 @@ case class CreateAgentRequest(authType : String, authValue : String) extends Age
         val uri = new URI("agent://" + toHex(bytes))
         val agentIdCnxn = PortableAgentCnxn(uri, "identity", uri)
 
+        // Should we use a public key here instead?
         // Generate K for encrypting the lists of aliases, external identities, etc. on the Agent
-        // term = pwdb(<salt>, hash = SHA(salt + pw), "user", AES_hash(K)) 
+        // term = pwdb(salt, K0 = hash, "user", AES_K0(K))
         // post term.toString on (Agent, term)
         {
           import DSLCommLink.mTT
@@ -59,15 +62,15 @@ case class CreateAgentRequest(authType : String, authValue : String) extends Age
           aes.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(hash, "AES"))
           // Generate K
           rand.nextBytes(bytes)
-          // AES_hash(K)
-          val aesHashK = toHex(aes.doFinal(bytes))
+          // AES_K0(K)
+          val aesK = toHex(aes.doFinal(bytes))
 
           val (erql, erspl) = agentMgr().makePolarizedPair()
           agentMgr().post(erql, erspl)(
             userPWDBLabel,
             List(agentIdCnxn),
             // TODO(mike): do proper context-aware interpolation
-            "pwdb(" + List(salt, toHex(hash), "user", aesHashK).map('"'+_+'"').mkString(",") + ")",
+            "pwdb(" + List(salt, toHex(hash), "user", aesK).map('"'+_+'"').mkString(",") + ")",
             (optRsrc: Option[mTT.Resource]) => {
               k(CreateAgentResponse(uri))
             }

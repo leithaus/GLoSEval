@@ -36,7 +36,7 @@ object Conversion {
     )
   }
   
-  def sessionToAgent(sessionURI): PortableAgentCnxn = {
+  def sessionToAgent(sessionURI: URI): PortableAgentCnxn = {
     selfConnection(new URI(
       "agent",
       sessionURI.getHost(),

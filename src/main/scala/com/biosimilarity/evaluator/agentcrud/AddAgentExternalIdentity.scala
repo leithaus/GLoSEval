@@ -1,13 +1,29 @@
 package com.biosimilarity.evaluator.agentcrud
+
+import com.biosimilarity.lift.model.store._
+import com.biosimilarity.evaluator.distribution.DSLCommLink.mTT
+import com.biosimilarity.evaluator.distribution.ConcreteHL._
+import com.biosimilarity.evaluator.distribution.usage.SimpleClient._
+
+import javax.crypto._
+import javax.crypto.spec.SecretKeySpec
+import java.security._
+
 import java.net.URI
+import java.util.UUID
 
 case class AddAgentExternalIdentityError(reason: String) extends AgentCRUDResponse
 case class AddAgentExternalIdentityResponse(sessionURI: URI) extends AgentCRUDResponse
 case class AddAgentExternalIdentityWaiting(sessionURI: URI) extends AgentCRUDResponse
 
-case class IDType
+trait IDType
 case class Email(address: String) extends IDType
 case class ExternalIdentity(idType: IDType)
+
+object URIs {
+  val tokenToEmailURI = new URI("system://tokenToEmailMap")
+  val emailToAgentURI = new URI("system://emailToAgentMap")
+}
 
 object ConfirmationEmail {
   def confirm(email: String, token: String) = {
@@ -27,18 +43,21 @@ object ConfirmationEmail {
 }
 
 case class AddAgentExternalIdentityRequest(sessionURI: URI, id: ExternalIdentity) extends AgentCRUDRequest {
-  var emailToAgentURI = new URI("system://emailToAgentMap")
-  var tokenToEmailURI = new URI("system://tokenToEmailMap")
-
   def handle(k: AgentCRUDResponse => Unit): Unit = {
     id match {
       case ExternalIdentity(Email(address)) => {
         // Check if email is already registered in the system
+        val emailTerm = new CnxnCtxtBranch[String,String,String](
+          "email",
+          List(
+            new CnxnCtxtLeaf[String,String,String](Left(address)),
+            new CnxnCtxtLeaf[String,String,String](Right("EncryptedAgentURI"))
+          )
+        )
         agentMgr().read(
-          // TODO(mike): use proper interpolation
-          fromTermString("email(\"" + address + "\", EncryptedAgentURI)").get,
-          List(Conversion.selfConnection(emailToAgentURI)),
-          (optRsrc: Option[mTT.Resource]) => {
+          emailTerm,
+          List(Conversion.selfConnection(URIs.emailToAgentURI)),
+          (optRsrc: Option[mTT.Resource]) => optRsrc match {
             case None => ()
             // Does not exist; send confiramtion email
             case Some(mTT.RBoundHM(Some(mTT.Ground(Bottom)), _)) => {
@@ -61,13 +80,18 @@ case class AddAgentExternalIdentityRequest(sessionURI: URI, id: ExternalIdentity
     // Store (token -> address) in map
     // Then send email notification and tell user to check their email
     val token = UUID.randomUUID.toString.substring(0,8)
-    val termStr = "token(" + token + ", " + address + ")"
+    val term = new CnxnCtxtBranch[String, String, String](
+      "token",
+      List(
+        new CnxnCtxtLeaf[String,String,String](Left(token)),
+        new CnxnCtxtLeaf[String,String,String](Left(address))
+      )
+    )
     agentMgr().put(
-      // TODO(mike): use proper interpolation
-      fromTermString(termStr).get,
-      List(Conversion.selfConnection(tokenToEmailURI)),
-      termStr,
-      (optRsrc: Option[mTT.Resource]) => {
+      term,
+      List(Conversion.selfConnection(URIs.tokenToEmailURI)),
+      term,
+      (optRsrc: Option[mTT.Resource]) => optRsrc match {
         case None => ()
         case Some(_) => {
           ConfirmationEmail.confirm(address, token)
@@ -78,29 +102,46 @@ case class AddAgentExternalIdentityRequest(sessionURI: URI, id: ExternalIdentity
   }
 }
 
-case class AddAgentExternalIdentityToken(sessionURI: URI, token: String) extends AgentCrudRequest {
+case class AddAgentExternalIdentityToken(sessionURI: URI, token: String) extends AgentCRUDRequest {
+  import m3.json._
+  import m3.json.Serialization._
+  @transient
+  implicit val serializer: Serializer = newSimpleJsonSerializer
+
+  import org.json4s._
+  import org.json4s.native.JsonMethods._
+  import org.json4s.JsonDSL._
+  @transient
+  implicit val formats = DefaultFormats
+
   def handle(k: AgentCRUDResponse => Unit): Unit = {
-    val tokenTermStr = "token(" + token + ", EmailAddress)"
-    
+    val tokenTerm = new CnxnCtxtBranch[String, String, String](
+      "token",
+      List(
+        new CnxnCtxtLeaf[String,String,String](Left(token)),
+        new CnxnCtxtLeaf[String,String,String](Right("EmailAddress"))
+      )
+    )
+
     agentMgr().get(
-      fromTermString(tokenTermStr).get,
-      List(Conversion.selfConnection(tokenToEmailURI)), 
-      (optRsrc: Option[mTT.Resource]) => {
-        optRsrc match {
-          case None => ()
-          case Some(mTT.RBoundHM(Some(mTT.Ground( v )), bindings)) => {
-            v match {
-              case Bottom => {
-                k(AddExternalIdentityError("No such token."))
+      tokenTerm,
+      List(Conversion.selfConnection(URIs.tokenToEmailURI)), 
+      (optRsrc: Option[mTT.Resource]) => optRsrc match {
+        case None => ()
+        case Some(mTT.RBoundHM(Some(mTT.Ground( v )), bindings)) => {
+          v match {
+            case Bottom => {
+              k(AddAgentExternalIdentityError("No such token."))
+            }
+            case PostedExpr(_) => {
+              val address = bindings.get("EmailAddress") match {
+                case CnxnCtxtLeaf(Right(str: String)) => str
               }
-              case PostedExpr(_) => {
-                val address = bindings.get("EmailAddress")
-                addEmailToIdentities(sessionURI, address, k)
-              }
+              addEmailToIdentities(sessionURI, address, k)
             }
           }
-          case _ => throw new Exception("Unrecognized resource: " + rsrc)
         }
+        case _ => throw new Exception("Unrecognized resource: " + optRsrc)
       }
     )
   }
@@ -110,62 +151,67 @@ case class AddAgentExternalIdentityToken(sessionURI: URI, token: String) extends
     agentMgr().get(
       eiTerm,
       List(Conversion.sessionToAgent(sessionURI)),
-      (optRsrc: Option[mTT.Resource]) => {
+      (optRsrc: Option[mTT.Resource]) => optRsrc match {
         case None => ()
         case Some(mTT.RBoundHM(Some(mTT.Ground( v )), bindings)) => {
           v match {
             case Bottom => {
               // create externalIdentities on Agent
-              putIdentities(sessionURI, List(ExternalIdentity(Email(address))), k)
+              putIdentities(sessionURI, address, List(ExternalIdentity(Email(address))), k)
             }
             case PostedExpr(_) => {
               // add email to externalIdentities, then put
-              val identities = bindings.get("Identities")
-              // convert from prolog to List[ExternalIdentities]
-              val idList = *****
-              putIdentities(sessionURI, idList :+ ExternalIdentity(Email(address)), k)
+              val identities = bindings.get("Identities") match {
+                case CnxnCtxtLeaf(Right(str: String)) => str
+              }
+              // convert from JSON to List[ExternalIdentities]
+              val idList = serializer.fromJson[List[ExternalIdentity]](parse(identities))
+              putIdentities(sessionURI, address, idList :+ ExternalIdentity(Email(address)), k)
             }
           }
         }
-        case _ => throw new Exception("Unrecognized resource: " + rsrc)
+        case _ => throw new Exception("Unrecognized resource: " + optRsrc)
       }
     )
   }
   
-  def putIdentities(sessionURI: URI, ids: List[ExternalIdentity], k: AgentCRUDResponse => Unit): Unit = {
-    val idsTermStr = "externalIdentities(" + ids.map(_.asProlog).mkString(",") + ")"
-    agentMgr.put(
-      fromTermString(idsTermStr).get,
-      Conversion.sessionToAgent(sessionURI),
-      idsTermStr,
-      (optRsrc: Option[mTT.Resource]) => {
+  def putIdentities(sessionURI: URI, address: String, ids: List[ExternalIdentity], k: AgentCRUDResponse => Unit): Unit = {
+    val idsTerm = new CnxnCtxtBranch[String, String, String](
+      "externalIdentities",
+      List(new CnxnCtxtLeaf[String,String,String](Left(compact(render(serializer.toJson(ids))))))
+    )
+    agentMgr().put(
+      idsTerm,
+      List(Conversion.sessionToAgent(sessionURI)),
+      idsTerm.toString(),
+      (optRsrc: Option[mTT.Resource]) => optRsrc match {
         case None => ()
         case Some(_) => {
-          k(AddAgentExternalIdentityResponse(sessionURI))
+          val emailTerm = new CnxnCtxtBranch[String,String,String](
+            "email",
+            List(
+              new CnxnCtxtLeaf[String,String,String](Left(address)),
+              // TODO(mike): encrypt the Agent URI with the user's key
+              //    1. get the agent from the sessionURI
+              //    2. look up aesK on agent self-connection with userPWDBLabel
+              //    3. use user password to decrypt K and encrypt the agentURI with K
+              //       This part is questionable; can we store the info to do that in the sessionURI?
+              new CnxnCtxtLeaf[String,String,String](Left(""))
+            )
+          )
+          agentMgr().put(
+            emailTerm,
+            List(Conversion.sessionToAgent(URIs.emailToAgentURI)),
+            emailTerm.toString(),
+            (optRsrc: Option[mTT.Resource]) => optRsrc match {
+              case None => ()
+              case Some(_) => {
+                k(AddAgentExternalIdentityResponse(sessionURI))
+              }
+            }
+          )
         }
       }
     )
-  }
-  
-  // Compute the mac of an email address
-  def emailToCap(email: String): String = {
-    val macInstance = Mac.getInstance("HmacSHA256")
-    macInstance.init(new SecretKeySpec("emailmac".getBytes("utf-8"), "HmacSHA256"))
-    macInstance.doFinal(email.getBytes("utf-8")).map("%02x" format _).mkString.substring(0,36)
-  }
-
-  // Given an email, mac it, then create Cnxn(mac, "emailhash", mac) and post "email(X): mac"
-  // to show we know about the email.  Return the mac
-  def storeCapByEmail(email: String): String = {
-    val cap = emailToCap(email)
-    val emailURI = new URI("emailhash://" + cap)
-    val emailSelfCnxn = //new ConcreteHL.PortableAgentCnxn(emailURI, emailURI.toString, emailURI)
-      PortableAgentCnxn(emailURI, "emailhash", emailURI)
-    agentMgr().put[String](
-      emailLabel,
-      List(emailSelfCnxn),
-      cap
-    )
-    cap
   }
 }
