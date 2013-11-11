@@ -44,6 +44,12 @@ object ConfirmationEmail {
 
 case class AddAgentExternalIdentityRequest(sessionURI: URI, id: ExternalIdentity) extends AgentCRUDRequest {
   def handle(k: AgentCRUDResponse => Unit): Unit = {
+    handle(k, confirmEmail)
+  }
+  def handle(
+    k: AgentCRUDResponse => Unit, 
+    confirm:(URI, String, AgentCRUDResponse => Unit) => Unit
+  ): Unit = {
     id match {
       case ExternalIdentity(Email(address)) => {
         // Check if email is already registered in the system
@@ -61,7 +67,7 @@ case class AddAgentExternalIdentityRequest(sessionURI: URI, id: ExternalIdentity
             case None => ()
             // Does not exist; send confiramtion email
             case Some(mTT.RBoundHM(Some(mTT.Ground(Bottom)), _)) => {
-              confirmEmail(sessionURI, address, k)
+              confirm(sessionURI, address, k)
             }
             // Exists; error
             case _ => {
@@ -137,6 +143,7 @@ case class AddAgentExternalIdentityToken(sessionURI: URI, token: String) extends
               val address = bindings.get("EmailAddress") match {
                 case CnxnCtxtLeaf(Right(str: String)) => str
               }
+              // TODO(mike): check that a previous token wasn't already used
               addEmailToIdentities(sessionURI, address, k)
             }
           }
