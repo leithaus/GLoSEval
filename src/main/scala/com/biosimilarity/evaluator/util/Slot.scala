@@ -72,11 +72,15 @@ object Usage {
   import com.biosimilarity.evaluator.distribution.PortableAgentCnxn
   import java.net.URI
   import com.biosimilarity.evaluator.distribution.usage.SimpleClient._
-  
-  def onPut() = println("onPut: done")
-  def onGet[T](value: T) = println("onGet: value = " + value)
-  def onRead[T](value: T) = println("onRead: value = " + value)
-  
+
+  def onPutDef() = println("onPut: done")
+  def onGetDef[T](value: T) = println("onGet: value = " + value)
+  def onReadDef[T](value: T) = println("onRead: value = " + value)
+
+  val onPut = onPutDef _
+  val onGet = onGetDef _
+  val onRead = onReadDef _
+
   val slot = new Slot(
     fromTermString("foo(_)").get,
     PortableAgentCnxn(new URI("a://b"), "flat", new URI("c://d"))
