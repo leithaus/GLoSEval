@@ -4,6 +4,7 @@ import com.biosimilarity.evaluator.distribution._
 import com.biosimilarity.evaluator.distribution.ConcreteHL._
 import com.biosimilarity.evaluator.distribution.DSLCommLink.mTT
 import com.biosimilarity.lift.model.store._
+import com.biosimilarity.lift.lib._
 
 class Slot(filter: CnxnCtxtLabel[String,String,String], connection: PortableAgentCnxn)
   extends EvaluationCommsService  
@@ -16,40 +17,52 @@ class Slot(filter: CnxnCtxtLabel[String,String,String], connection: PortableAgen
   with Serializable
 {
   def read[T](success: Option[T] => Unit) = {
+    BasicLogService.tweet("Slot.read")
     agentMgr().read(
       filter,
       List(connection),
-      (optRsrc: Option[mTT.Resource]) => optRsrc match {
-        case None => ()
-        case Some(mTT.RBoundHM(Some(mTT.Ground( v )), _)) => v match {
-          case Bottom => success(None)
-          case PostedExpr( (PostedExpr( postedValue : T ), _, _) ) => success(Some(postedValue))
+      (optRsrc: Option[mTT.Resource]) => {
+        BasicLogService.tweet("Slot.get | onGet: optRsrc = " + optRsrc)
+        optRsrc match {
+          case None => ()
+          case Some(mTT.RBoundHM(Some(mTT.Ground( v )), _)) => v match {
+            case Bottom => success(None)
+            case PostedExpr( (PostedExpr( postedValue : T ), _, _) ) => success(Some(postedValue))
+          }
+          case v => throw new Exception("Unrecognized value: " + v)
         }
-        case v => throw new Exception("Unrecognized value: " + v)
       }
     )
   }
   def get[T](success: Option[T] => Unit) = {
+    BasicLogService.tweet("Slot.get")
     agentMgr().get(
       filter,
       List(connection),
-      (optRsrc: Option[mTT.Resource]) => optRsrc match {
-        case None => ()
-        case Some(mTT.RBoundHM(Some(mTT.Ground( v )), _)) => v match {
-          case Bottom => success(None)
-          case PostedExpr( (PostedExpr( postedValue : T ), _, _) ) => success(Some(postedValue))
+      (optRsrc: Option[mTT.Resource]) => {
+        BasicLogService.tweet("Slot.get | onGet: optRsrc = " + optRsrc)
+        optRsrc match {
+          case None => ()
+          case Some(mTT.RBoundHM(Some(mTT.Ground( v )), _)) => v match {
+            case Bottom => success(None)
+            case PostedExpr( (PostedExpr( postedValue : T ), _, _) ) => success(Some(postedValue))
+          }
+          case v => throw new Exception("Unrecognized value: " + v)
         }
-        case v => throw new Exception("Unrecognized value: " + v)
       }
     )
   }
   def put[T](value: T, k: () => Unit = () => ()) = {
+    BasicLogService.tweet("Slot.put: value = " + value)
     agentMgr().put(
       filter,
       List(connection),
-      (optRsrc: Option[mTT.Resource]) => optRsrc match {
-        case None => ()
-        case Some(_) => k()
+      (optRsrc: Option[mTT.Resource]) => {
+        BasicLogService.tweet("Slot.put | onPut: optRsrc = " + optRsrc)
+        optRsrc match {
+          case None => ()
+          case Some(_) => k()
+        }
       }
     )
   }
