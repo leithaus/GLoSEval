@@ -17,8 +17,8 @@ case class CreateAgentRequest(authType : String, authValue : String) extends Age
   import org.json4s.native.JsonMethods._
   import org.json4s.JsonDSL._
 
-  val userPWDBLabel = fromTermString("""pwdb(Salt, Hash, "user", K)""").get
-  val adminPWDBLabel = fromTermString("""pwdb(Salt, Hash, "admin", K)""").get
+  val userPWDBLabel = fromTermString("""system(pwdb(Salt, Hash, "user", K))""").get
+  val adminPWDBLabel = fromTermString("""system(pwdb(Salt, Hash, "admin", K))""").get
 
   def toHex(bytes: Array[Byte]): String = {
     bytes.map("%02X" format _).mkString
@@ -48,7 +48,7 @@ case class CreateAgentRequest(authType : String, authValue : String) extends Age
         val bytes = new Array[Byte](16)
         rand.nextBytes(bytes)
         val uri = new URI("agent://" + toHex(bytes))
-        val agentIdCnxn = PortableAgentCnxn(uri, "identity", uri)
+        val agentIdCnxn = Conversion.selfConnection(uri)
 
         // Should we use a public key here instead?
         // Generate K for encrypting the lists of aliases, external identities, etc. on the Agent

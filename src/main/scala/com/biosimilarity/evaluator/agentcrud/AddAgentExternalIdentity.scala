@@ -4,6 +4,7 @@ import com.biosimilarity.lift.model.store._
 import com.biosimilarity.evaluator.distribution.DSLCommLink.mTT
 import com.biosimilarity.evaluator.distribution.ConcreteHL._
 import com.biosimilarity.evaluator.distribution.usage.SimpleClient._
+import com.biosimilarity.evaluator.util.Slot
 
 import javax.crypto._
 import javax.crypto.spec.SecretKeySpec
@@ -60,21 +61,13 @@ case class AddAgentExternalIdentityRequest(sessionURI: URI, id: ExternalIdentity
             new CnxnCtxtLeaf[String,String,String](Right("EncryptedAgentURI"))
           )
         )
-        agentMgr().read(
-          emailTerm,
-          List(Conversion.selfConnection(URIs.emailToAgentURI)),
-          (optRsrc: Option[mTT.Resource]) => optRsrc match {
-            case None => ()
-            // Does not exist; send confiramtion email
-            case Some(mTT.RBoundHM(Some(mTT.Ground(Bottom)), _)) => {
-              confirm(sessionURI, address, k)
-            }
-            // Exists; error
-            case _ => {
-              k(AddAgentExternalIdentityError("Email address is already taken."))
-            }
-          }
-        )
+        val slot = new Slot(emailTerm, Conversion.selfConnection(URIs.emailToAgentURI))
+        slot.read((opt: Option[Unit]) => opt match {
+          // Does not exist; send confiramtion email
+          case None => confirm(sessionURI, address, k)
+          // Exists; error
+          case _ => k(AddAgentExternalIdentityError("Email address is already taken."))
+        })
       }
       case _ => {
         k(AddAgentExternalIdentityError("Unrecognized external identity type."))
@@ -93,16 +86,12 @@ case class AddAgentExternalIdentityRequest(sessionURI: URI, id: ExternalIdentity
         new CnxnCtxtLeaf[String,String,String](Left(address))
       )
     )
-    agentMgr().put(
+    val slot = new Slot(term, Conversion.selfConnection(URIs.emailToAgentURI))
+    slot.put(
       term,
-      List(Conversion.selfConnection(URIs.tokenToEmailURI)),
-      term,
-      (optRsrc: Option[mTT.Resource]) => optRsrc match {
-        case None => ()
-        case Some(_) => {
-          ConfirmationEmail.confirm(address, token)
-          k(AddAgentExternalIdentityWaiting(sessionURI))
-        }
+      () => {
+        ConfirmationEmail.confirm(address, token)
+        k(AddAgentExternalIdentityWaiting(sessionURI))
       }
     )
   }
@@ -154,7 +143,7 @@ case class AddAgentExternalIdentityToken(sessionURI: URI, token: String) extends
   }
 
   def addEmailToIdentities(sessionURI: URI, address: String, k: AgentCRUDResponse => Unit): Unit = {
-    val eiTerm = fromTermString("externalIdentities(Identities)").get
+    val eiTerm = fromTermString("system(externalIdentities(Identities))").get
     agentMgr().get(
       eiTerm,
       List(Conversion.sessionToAgent(sessionURI)),
@@ -184,8 +173,11 @@ case class AddAgentExternalIdentityToken(sessionURI: URI, token: String) extends
   
   def putIdentities(sessionURI: URI, address: String, ids: List[ExternalIdentity], k: AgentCRUDResponse => Unit): Unit = {
     val idsTerm = new CnxnCtxtBranch[String, String, String](
-      "externalIdentities",
-      List(new CnxnCtxtLeaf[String,String,String](Left(compact(render(serializer.toJson(ids))))))
+      "system",
+      List(new CnxnCtxtBranch[String, String, String](
+        "externalIdentities",
+        List(new CnxnCtxtLeaf[String,String,String](Left(compact(render(serializer.toJson(ids))))))
+      ))
     )
     agentMgr().put(
       idsTerm,
