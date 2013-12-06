@@ -291,12 +291,11 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
           v match {              
             case PostedExpr( (PostedExpr( previousAliasList : String ), _, _) ) => {
               val newAliasList = compact( render( parse( previousAliasList ) ++ msg.aliases ) )
-
-              BasicLogService.tweet( "handleaddAgentAliasesRequest | onGet | onPut | updating aliasList with " + newAliasList )
-
+              BasicLogService.tweet( "handleaddAgentAliasesRequest | onGet | onPut | got " + previousAliasList + ", updating aliasList with " + newAliasList )
               agentMgr().put[String]( aliasStorageLocation, List( aliasStorageCnxn ), newAliasList, onPut )
             }
             case Bottom => {
+              BasicLogService.tweet( "handleaddAgentAliasesRequest | onGet | onPut | got Bottom, updating aliasList with " + compact(render(msg.aliases)) )
               agentMgr().put[String]( aliasStorageLocation, List( aliasStorageCnxn ), compact(render(msg.aliases)), onPut )
             }
           }
@@ -817,7 +816,8 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
                 msg.sessionURI.toString,
                 compact(
                   render(
-                    ( "msgType" -> "updateAliasLabelsResponse" ) ~ ( "content" -> ( "sessionURI" -> msg.sessionURI.toString ) )
+                    ( "msgType" -> "updateAliasLabelsResponse" ) ~
+                    ( "content" -> ( "sessionURI" -> msg.sessionURI.toString ) )
                   )
                 )
               )
