@@ -202,7 +202,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   //## Methods on Agents
   //### createAgent
   def handlecreateAgentRequest(
-    key : String,
     msg : createAgentRequest
   ) : Unit = {
     BasicLogService.tweet( 
@@ -213,7 +212,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //### initializeSession
   def handleinitializeSessionRequest(
-    key : String,
     msg : initializeSessionRequest
   ) : Unit = {
     BasicLogService.tweet( 
@@ -224,7 +222,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   //### External identities
   //#### addAgentExternalIdentity
   def handleaddAgentExternalIdentityRequest[ID](
-    key : String,
     msg : addAgentExternalIdentityRequest[ID]
   ) : Unit = {
     BasicLogService.tweet(
@@ -235,7 +232,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   //        - `IDType = Email`
   //    - We only support adding one identity per message because of need for confirmation
   def handleaddAgentExternalIdentityToken(
-    key : String,
     msg : addAgentExternalIdentityToken
   ) : Unit = {
     BasicLogService.tweet( 
@@ -246,7 +242,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### removeAgentExternalIdentities
   def handleremoveAgentExternalIdentitiesRequest[ID](
-    key : String,
     msg : removeAgentExternalIdentitiesRequest[ID]
   ) : Unit = {
     BasicLogService.tweet(
@@ -256,7 +251,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### getAgentExternalIdentities
   def handlegetAgentExternalIdentitiesRequest[IDType](
-    key : String,
     msg : getAgentExternalIdentitiesRequest[IDType]
   ) : Unit = {
     BasicLogService.tweet(
@@ -268,7 +262,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   //### Aliases
   //#### addAgentAliases
   def handleaddAgentAliasesRequest(
-    key : String,
     msg : addAgentAliasesRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handleaddAgentAliasesRequest with msg : " + msg )
@@ -289,27 +282,26 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
           val onPut : Option[mTT.Resource] => Unit = ( optRsrc : Option[mTT.Resource] ) => {
             BasicLogService.tweet( "handleaddAgentAliasesRequest | onGet | onPut" )
 
-            CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+            CometActorMapper.cometMessage(sessionURIStr, compact( render(
               ( "msgType" -> "addAgentAliasesResponse" ) ~
               ( "content" -> ( "sessionURI" -> sessionURIStr ) )
             ) ) )
           }
 
           v match {              
-            case PostedExpr( previousAliasList : String ) => {
+            case PostedExpr( (PostedExpr( previousAliasList : String ), _, _) ) => {
               val newAliasList = compact( render( parse( previousAliasList ) ++ msg.aliases ) )
-
-              BasicLogService.tweet( "handleaddAgentAliasesRequest | onGet | onPut | updating aliasList with " + newAliasList )
-
+              BasicLogService.tweet( "handleaddAgentAliasesRequest | onGet | onPut | got " + previousAliasList + ", updating aliasList with " + newAliasList )
               agentMgr().put[String]( aliasStorageLocation, List( aliasStorageCnxn ), newAliasList, onPut )
             }
             case Bottom => {
+              BasicLogService.tweet( "handleaddAgentAliasesRequest | onGet | onPut | got Bottom, updating aliasList with " + compact(render(msg.aliases)) )
               agentMgr().put[String]( aliasStorageLocation, List( aliasStorageCnxn ), compact(render(msg.aliases)), onPut )
             }
           }
         }
         case wonky => {
-          CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+          CometActorMapper.cometMessage(sessionURIStr, compact( render(
             ( "msgType" -> "addAgentAliasesError" ) ~
             ( "content" ->
               ( "sessionURI" -> sessionURIStr ) ~
@@ -327,7 +319,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### removeAgentAliases
   def handleremoveAgentAliasesRequest(
-    key : String,
     msg : removeAgentAliasesRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handleremoveAgentAliasesRequest with msg : " + msg )
@@ -348,14 +339,14 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
           val onPut : Option[mTT.Resource] => Unit = ( optRsrc : Option[mTT.Resource] ) => {
             BasicLogService.tweet("handleremoveAgentAliasesRequest | onGet | onPut")
 
-            CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+            CometActorMapper.cometMessage(sessionURIStr, compact( render(
               ( "msgType" -> "removeAgentAliasesResponse" ) ~
               ( "content" -> ( "sessionURI" -> sessionURIStr ) )
             ) ) )
           }
 
           v match {
-            case PostedExpr( previousAliasList : List[String] ) => {
+            case PostedExpr( (PostedExpr( previousAliasList : List[String] ), _, _) ) => {
               val newAliasList = previousAliasList.filterNot( msg.aliases.contains )
 
               BasicLogService.tweet(
@@ -367,7 +358,7 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
             case Bottom => {
               BasicLogService.tweet( "handleremoveAgentAliasesRequest | onGet: no aliasList exists" )
 
-              CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+              CometActorMapper.cometMessage(sessionURIStr, compact( render(
                 ( "msgType" -> "removeAgentAliasesError" ) ~
                 ( "content" ->
                   ( "sessionURI" -> sessionURIStr ) ~
@@ -386,7 +377,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### getAgentAliases
   def handlegetAgentAliasesRequest(
-    key : String,
     msg : getAgentAliasesRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handlegetAgentAliasesRequest with msg : " + msg )
@@ -405,11 +395,11 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
           val sessionURIStr = msg.sessionURI.toString
 
           val aliasList = v match {
-            case PostedExpr( aliasList : List[String] ) => aliasList
+            case PostedExpr( (PostedExpr( aliasList : List[String] ), _, _) ) => aliasList
             case Bottom => Nil
           }
 
-          CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+          CometActorMapper.cometMessage(sessionURIStr, compact( render(
             ( "msgType" -> "getAgentAliasesResponse" ) ~
             ( "content" ->
               ( "sessionURI" -> sessionURIStr ) ~
@@ -426,7 +416,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### getDefaultAlias
   def handlegetDefaultAliasRequest(
-    key : String,
     msg : getDefaultAliasRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handlegetDefaultAliasRequest with msg : " + msg )
@@ -445,8 +434,8 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
             val sessionURIStr = msg.sessionURI.toString
 
             v match {
-              case PostedExpr( defaultAlias : String ) => {
-                CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+              case PostedExpr( (PostedExpr( defaultAlias : String ), _, _) ) => {
+                CometActorMapper.cometMessage(sessionURIStr, compact( render(
                   ( "msgType" -> "getDefaultAliasResponse" ) ~
                   ( "content" ->
                     ( "sessionURI" -> sessionURIStr ) ~
@@ -455,7 +444,7 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
                 ) ) )
               }
               case Bottom => {
-                CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+                CometActorMapper.cometMessage(sessionURIStr, compact( render(
                   ( "msgType" -> "getDefaultAliasError" ) ~
                   ( "content" ->
                     ( "sessionURI" -> sessionURIStr ) ~
@@ -474,7 +463,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### setDefaultAlias
   def handlesetDefaultAliasRequest(
-    key : String,
     msg : setDefaultAliasRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handlesetDefaultAliasRequest with msg : " + msg )
@@ -486,7 +474,7 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
 
       val sessionURIStr = msg.sessionURI.toString
 
-      CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+      CometActorMapper.cometMessage(sessionURIStr, compact( render(
         ( "msgType" -> "setDefaultAliasResponse" ) ~
         ( "content" -> ( "sessionURI" -> sessionURIStr ) )
       ) ) )
@@ -500,7 +488,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   //### External identities
   //#### addAliasExternalIdentities
   def handleaddAliasExternalIdentitiesRequest[ID](
-    key : String,
     msg : addAliasExternalIdentitiesRequest[ID]
   ) : Unit = {
     BasicLogService.tweet( "Entering: handleaddAliasExternalIdentitiesRequest with msg : " + msg )
@@ -521,14 +508,14 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
 
             val sessionURIStr = msg.sessionURI.toString
 
-            CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+            CometActorMapper.cometMessage(sessionURIStr, compact( render(
               ( "msgType" -> "addAliasExternalIdentitiesResponse" ) ~
               ( "content" -> ( "sessionURI" -> sessionURIStr ) )
             ) ) )
           }
 
           v match {
-            case PostedExpr( previousExternalIdsList : List[ID] ) => {
+            case PostedExpr( (PostedExpr( previousExternalIdsList : List[ID] ), _, _) ) => {
               val newExternalIdsList = previousExternalIdsList ++ msg.ids
 
               BasicLogService.tweet(
@@ -552,7 +539,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### removeAliasExternalIdentities
   def handleremoveAliasExternalIdentitiesRequest[ID](
-    key : String,
     msg : removeAliasExternalIdentitiesRequest[ID]
   ) : Unit = {
     BasicLogService.tweet( "Entering: handleremoveAliasExternalIdentitiesRequest with msg : " + msg )
@@ -573,14 +559,14 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
           val onPut : Option[mTT.Resource] => Unit = ( optRsrc : Option[mTT.Resource] ) => {
             BasicLogService.tweet( "handleremoveAliasExternalIdentitiesRequest | onGet | onPut" )
 
-            CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+            CometActorMapper.cometMessage(sessionURIStr, compact( render(
               ( "msgType" -> "removeAliasExternalIdentitiesResponse" ) ~
               ( "content" -> ( "sessionURI" -> sessionURIStr ) )
             ) ) )
           }
 
           v match {
-            case PostedExpr( previousExternalIdsList : List[ID] ) => {
+            case PostedExpr( (PostedExpr( previousExternalIdsList : List[ID] ), _, _) ) => {
               val newExternalIdsList = previousExternalIdsList.filterNot( msg.ids.contains )
 
               BasicLogService.tweet(
@@ -592,7 +578,7 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
             case Bottom => {
               BasicLogService.tweet( "handleremoveAliasExternalIdentitiesRequest | onGet: no externalIdsList exists" )
 
-              CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+              CometActorMapper.cometMessage(sessionURIStr, compact( render(
                 ( "msgType" -> "removeAliasExternalIdentitiesError" ) ~
                 ( "content" ->
                   ( "sessionURI" -> sessionURIStr ) ~
@@ -611,7 +597,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### getAliasExternalIdentities
   def handlegetAliasExternalIdentitiesRequest[IDType](
-    key : String,
     msg : getAliasExternalIdentitiesRequest[IDType]
   ) : Unit = {
     BasicLogService.tweet( "Entering: handlegetAliasExternalIdentitiesRequest with msg : " + msg )
@@ -620,7 +605,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### setAliasDefaultExternalIdentity
   def handlesetAliasDefaultExternalIdentityRequest[ID](
-    key : String,
     msg : setAliasDefaultExternalIdentityRequest[ID]
   ) : Unit = {
     BasicLogService.tweet( "Entering: handlesetAliasDefaultExternalIdentityRequest with msg : " + msg )
@@ -632,7 +616,7 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
 
       val sessionURIStr = msg.sessionURI.toString
 
-      CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+      CometActorMapper.cometMessage(sessionURIStr, compact( render(
         ( "msgType" -> "setAliasDefaultExternalIdentityResponse" ) ~
         ( "content" -> ( "sessionURI" -> sessionURIStr ) )
       ) ) )
@@ -645,7 +629,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   //### Connections
   //#### removeAliasConnections
   def handleremoveAliasConnectionsRequest(
-    key : String,
     msg : removeAliasConnectionsRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handleremoveAliasConnectionsRequest with msg : " + msg )
@@ -668,14 +651,14 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
 
             // TODO: Should the write cnxn be cleared out or removed?
 
-            CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+            CometActorMapper.cometMessage(sessionURIStr, compact( render(
               ( "msgType" -> "removeAliasConnectionsResponse" ) ~
               ( "content" -> ( "sessionURI" -> sessionURIStr ) )
             ) ) )
           }
 
           v match {
-            case PostedExpr( previousBiCnxnListStr : String ) => {
+            case PostedExpr( (PostedExpr( previousBiCnxnListStr : String ), _, _) ) => {
               // TODO: Deserialize string
               // TODO: Filter BiCnxns based on passed in Cnxns
               // TODO: Serialize new BiCnxns list
@@ -697,7 +680,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
 
   //#### getAliasConnections
   def handlegetAliasConnectionsRequest(
-    key : String,
     msg : getAliasConnectionsRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handlegetAliasConnectionsRequest with msg : " + msg )
@@ -716,7 +698,7 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
           val sessionURIStr = msg.sessionURI.toString
 
           val biCnxnList = v match {
-            case PostedExpr( biCnxnListStr : String ) => {
+            case PostedExpr( (PostedExpr( biCnxnListStr : String ), _, _) ) => {
               Serializer.deserialize[List[PortableAgentBiCnxn]]( biCnxnListStr )
             }
             case Bottom => Nil
@@ -728,7 +710,7 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
             ( "target" -> biCnxn.writeCnxn.trgt.toString )
           }
 
-          CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+          CometActorMapper.cometMessage(sessionURIStr, compact( render(
             ( "msgType" -> "getAliasConnectionsResponse" ) ~
             ( "content" ->
               ( "sessionURI" -> sessionURIStr ) ~
@@ -745,7 +727,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   //### Labels
   //#### addAliasLabels
   def handleaddAliasLabelsRequest(
-    key : String,
     msg : addAliasLabelsRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handleaddAliasLabelsRequest with msg : " + msg )
@@ -766,14 +747,14 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
           val onPut : Option[mTT.Resource] => Unit = ( optRsrc : Option[mTT.Resource] ) => {
             BasicLogService.tweet( "handleaddAliasLabelsRequest | onGet | onPut" )
 
-            CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+            CometActorMapper.cometMessage(sessionURIStr, compact( render(
               ( "msgType" -> "addAliasLabelsResponse" ) ~
               ( "content" -> ( "sessionURI" -> sessionURIStr ) )
             ) ) )
           }
 
           v match {
-            case PostedExpr( previousLabelList : String ) => {
+            case PostedExpr( (PostedExpr( previousLabelList : String ), _, _) ) => {
               val newLabelList = compact(render(parse(previousLabelList) ++ msg.labels.map(_.toString.replace("'",""))))
               BasicLogService.tweet("handleaddAliasLabelsRequest | onGet | onPut | updating labelList with " + newLabelList )
               agentMgr().put[String](
@@ -794,7 +775,7 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
           }
         }        
         case wonky => {
-          CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+          CometActorMapper.cometMessage(sessionURIStr, compact( render(
             ( "msgType" -> "addAliasLabelsError" ) ~ 
             ( "content" -> ( "reason" -> ("Got wonky response: " + wonky) ) )
           ) ) )
@@ -809,7 +790,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### updateAliasLabels
   def handleupdateAliasLabelsRequest(
-    key : String,
     msg : updateAliasLabelsRequest
   ) : Unit = {
     BasicLogService.tweet(
@@ -832,11 +812,12 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
           val onPut : Option[mTT.Resource] => Unit =
             ( optRsrc : Option[mTT.Resource] ) => {
               BasicLogService.tweet("handleupdateAliasLabelsRequest | onGet | onPut")
-              CompletionMapper.complete(
-                key,
+              CometActorMapper.cometMessage(
+                msg.sessionURI.toString,
                 compact(
                   render(
-                    ( "msgType" -> "updateAliasLabelsResponse" ) ~ ( "content" -> ( "sessionURI" -> msg.sessionURI.toString ) )
+                    ( "msgType" -> "updateAliasLabelsResponse" ) ~
+                    ( "content" -> ( "sessionURI" -> msg.sessionURI.toString ) )
                   )
                 )
               )
@@ -860,7 +841,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### getAliasLabels
   def handlegetAliasLabelsRequest(
-    key : String,
     msg : getAliasLabelsRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handlegetAliasLabelsRequest with msg : " + msg )
@@ -878,16 +858,17 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
 
           val sessionURIStr = msg.sessionURI.toString
 
-          val labelList = v match {
-            case PostedExpr( labelList : List[CnxnCtxtLabel[String,String,String]] ) => labelList
+          val labelList: JArray = v match {
+            case PostedExpr( (PostedExpr( labelList : String ), _, _) ) =>
+              parse(labelList).asInstanceOf[JArray]
             case Bottom => Nil
           }
 
-          CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+          CometActorMapper.cometMessage(sessionURIStr, compact( render(
             ( "msgType" -> "getAliasLabelsResponse" ) ~
             ( "content" ->
               ( "sessionURI" -> sessionURIStr ) ~
-              ( "labels" -> labelList.map( _.toString ) )
+              ( "labels" -> labelList )
             )
           ) ) )
         }
@@ -899,7 +880,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### setAliasDefaultLabel
   def handlesetAliasDefaultLabelRequest(
-    key : String,
     msg : setAliasDefaultLabelRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handlesetAliasDefaultLabelRequest with msg : " + msg )
@@ -911,7 +891,7 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
 
       val sessionURIStr = msg.sessionURI.toString
 
-      CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+      CometActorMapper.cometMessage(sessionURIStr, compact( render(
         ( "msgType" -> "setAliasDefaultLabelResponse" ) ~
         ( "content" -> ( "sessionURI" -> sessionURIStr ) )
       ) ) )
@@ -928,7 +908,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### getAliasDefaultLabel
   def handlegetAliasDefaultLabelRequest(
-    key : String,
     msg : getAliasDefaultLabelRequest
   ) : Unit = {
     BasicLogService.tweet( "Entering: handlegetAliasDefaultLabelRequest with msg : " + msg )
@@ -947,8 +926,8 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
           val sessionURIStr = msg.sessionURI.toString
 
           v match {
-            case PostedExpr( defaultLabel : CnxnCtxtLabel[String,String,String] ) => {
-              CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+            case PostedExpr( (PostedExpr( defaultLabel : CnxnCtxtLabel[String,String,String] ), _, _) ) => {
+              CometActorMapper.cometMessage(sessionURIStr, compact( render(
                 ( "msgType" -> "getAliasDefaultLabelResponse" ) ~
                 ( "content" ->
                   ( "sessionURI" -> sessionURIStr ) ~
@@ -957,7 +936,7 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
               ) ) )
             }
             case Bottom => {
-              CometActorMapper.cometMessage( key, sessionURIStr, compact( render(
+              CometActorMapper.cometMessage(sessionURIStr, compact( render(
                 ( "msgType" -> "getAliasDefaultLabelError" ) ~
                 ( "content" ->
                   ( "sessionURI" -> sessionURIStr ) ~
@@ -976,7 +955,6 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   //### DSL
   //#### evalSubscribe
   def handleevalSubscribeRequest[GloSExpr](
-    key : String,
     msg : evalSubscribeRequest[GloSExpr]
   ) : Unit = {
     BasicLogService.tweet(
@@ -995,11 +973,27 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
   
   //#### evalSubscribeCancel
   def handleevalSubscribeCancelRequest(
-    key : String,
     msg : evalSubscribeCancelRequest
   ) : Unit = {
     BasicLogService.tweet( 
       "Entering: handleevalSubscribeCancelRequest with msg : " + msg
     )
+    val onCancel: Option[mTT.Resource] => Unit = ( optRsrc : Option[mTT.Resource] ) => {
+      optRsrc match {
+        case None => {
+          // Nothing to be done
+          BasicLogService.tweet( "handleevalSubscribeCancelRequest | onFetch: got None" )
+        }
+        case _ => {
+          CometActorMapper.cometMessage(msg.sessionURI.toString, compact(render(
+            ("msgType" -> "evalSubscribeCancelResponse") ~
+            ("content" -> ("sessionURI" -> msg.sessionURI.toString))
+          )))
+        }
+      }
+    }
+    for (filter <- msg.filter) {
+      agentMgr().cancel(filter, msg.connections, onCancel)
+    }
   }
 }
