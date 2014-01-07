@@ -38,4 +38,3 @@ libraryDependencies ++= Seq(
   "org.basex" % "basex-api" % "7.5",
   "biz.source_code" % "base64coder" % "2010-09-21",
   "org.apache.commons" % "commons-email" % "1.3.1")
->>>>>>> 9175e35b11804b5bf4f6563a6a7262df39709bff
