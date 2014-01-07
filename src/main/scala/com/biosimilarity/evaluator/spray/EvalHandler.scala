@@ -44,6 +44,9 @@ import java.util.UUID
 
 import java.net.URI
 
+// Mask the json4s symbol2jvalue implicit so we can use the PrologDSL
+object symbol2jvalue {}
+
 object CompletionMapper {
   @transient
   val map = new HashMap[String, RequestContext]()
@@ -341,9 +344,9 @@ trait EvalHandler {
     val tokenUri = new URI("token://" + token)
     val tokenCnxn = PortableAgentCnxn(tokenUri, "token", tokenUri)
     
-    val (erql, erspl) = agentMgr().makePolarizedPair()
+    //val (erql, erspl) = agentMgr().makePolarizedPair()
     // TODO(mike): remove the token after it's been used
-    agentMgr().read(erql, erspl)(tokenLabel, List(tokenCnxn), (rsrc: Option[mTT.Resource]) => {
+    agentMgr().read(tokenLabel, List(tokenCnxn), (rsrc: Option[mTT.Resource]) => {
       rsrc match {
         case None => ()
         case Some(mTT.RBoundHM(Some(mTT.Ground( v )), _)) => {
@@ -689,9 +692,9 @@ trait EvalHandler {
       val capURI = new URI("agent://" + cap)
       val capSelfCnxn = PortableAgentCnxn(capURI, "identity", capURI)
 
-      val (erql, erspl) = agentMgr().makePolarizedPair()
+      //val (erql, erspl) = agentMgr().makePolarizedPair()
       // See if the email is already there
-      agentMgr().read( erql, erspl )(
+      agentMgr().read(
         jsonBlobLabel,
         List(capSelfCnxn),
         (optRsrc: Option[mTT.Resource]) => {
@@ -956,9 +959,9 @@ trait EvalHandler {
         // don't need mac of cap; need to verify email is on our network
         val emailURI = new URI("emailhash://" + cap)
         val emailSelfCnxn = PortableAgentCnxn(emailURI, "emailhash", emailURI)
-        val (erql, erspl) = agentMgr().makePolarizedPair()
-        BasicLogService.tweet("secureSignup | email branch: erql, erspl = " + erql + ", " + erspl)
-        agentMgr().read(erql, erspl)(
+        //val (erql, erspl) = agentMgr().makePolarizedPair()
+        //BasicLogService.tweet("secureSignup | email branch: erql, erspl = " + erql + ", " + erspl)
+        agentMgr().read(
           emailLabel,
           List(emailSelfCnxn),
           (optRsrc: Option[mTT.Resource]) => {
@@ -1104,7 +1107,7 @@ trait EvalHandler {
 
     def SOP: Parser[Set[List[Path]]] = Empty | Path | Product | Sum
     
-    def sumOfProductsToFilterSet(sop: Set[List[Path]]): Set[CnxnCtxtLabel[String, String, String]] = {
+    def sumOfProductsToFilterSet(sop: Set[List[Path]]): Set[CnxnCtxtLabel[String, String, String] with Factual] = {
       val filterSet = for (prod <- sop) yield {
         // List(List("Greg", "Biosim", "Work"), List("Personal"))
         // => fromTermString("all(vWork(vBiosim(vGreg(_))), vPersonal(_))").get
@@ -1114,7 +1117,7 @@ trait EvalHandler {
             (l2 + "v" + tag + "(", ")" + r2)
           })
           l + "_" + r        
-        }).mkString(",") + ")").get
+        }).mkString(",") + ")").get.asInstanceOf[CnxnCtxtLabel[String, String, String] with Factual]
       }
       filterSet.isEmpty match {
         // Default to the "match everything" filter
@@ -1136,29 +1139,44 @@ trait EvalHandler {
     (label, cnxns)
   }
 
-  // Renders a ccl of the form "all(va('_), vb(vc(vd('_))))"
-  // as the kind of json filter we get from the UI
-  def cclToUI(ccl: CnxnCtxtLabel[String,String,String]): (String, String) = {
+  def extractMetadata(ccl: CnxnCtxtLabel[String,String,String]):
+    (CnxnCtxtLabel[String,String,String] with Factual, String, Either[String, String], String) = 
+  {
     def cclToPath(ccl: CnxnCtxtLabel[String,String,String]): List[String] = {
       ccl match {
         case CnxnCtxtBranch(tag, List(CnxnCtxtLeaf(Right("_")))) => List(tag.substring(1))
         case CnxnCtxtBranch(tag, children) => tag.substring(1) :: cclToPath(children(0))
       }
     }
+    // Assume ccl is of the form user(p1(all(...)), p2(uid(...)), p3(new(_)|old(_)), p4(nil(_)))
     ccl match {
-      case CnxnCtxtBranch("all", uid :: factuals) => {
-        val uidStr = uid match {
-          case CnxnCtxtBranch(_, List(CnxnCtxtLeaf(Left(uidStr: String)))) => uidStr
-          case CnxnCtxtBranch(_, List(CnxnCtxtLeaf(Right(uidVar: String)))) => uidVar
-        }
-        (uidStr, "all(" + factuals.map("[" + cclToPath(_).reverse.mkString(",") + "]").mkString(",") + ")")
-      }
+      case CnxnCtxtBranch("user", 
+        CnxnCtxtBranch("p1", filter :: Nil) :: 
+        CnxnCtxtBranch("p2", uid :: Nil) ::
+        CnxnCtxtBranch("p3", age :: Nil) :: _) => 
+        (
+          filter,
+          filter match {
+            case CnxnCtxtBranch("all", factuals) => {
+              "all(" + factuals.map("[" + cclToPath(_).reverse.mkString(",") + "]").mkString(",") + ")"
+            }
+          },
+          uid match {
+            case CnxnCtxtBranch("uid", factuals) => factuals(0) match {
+              case CnxnCtxtLeaf(tag: Either[String, String]) => tag
+            }
+          },
+          age match {
+            case CnxnCtxtBranch(ageStr: String, _) => ageStr
+          }
+        )
     }
   }
 
   def evalSubscribeRequest(json: JValue) : Unit = {
     import com.biosimilarity.evaluator.distribution.portable.v0_1._
     import com.protegra_ati.agentservices.store._
+    import com.biosimilarity.evaluator.prolog.PrologDSL._
     
     object act extends AgentCnxnTypes {}
 
@@ -1180,9 +1198,24 @@ trait EvalHandler {
             case None => ()
             case Some(mTT.RBoundHM(Some(mTT.Ground(PostedExpr(
               (PostedExpr(postedStr: String), filter: CnxnCtxtLabel[String,String,String], cnxn)
-            ))), _)) => {
-              val (uid, jsonFilter) = cclToUI(filter)
+            ))), bindings)) => {
+              val (cclFilter, jsonFilter, uid, age) = extractMetadata(filter)
               val agentCnxn = cnxn.asInstanceOf[act.AgentCnxn]
+              println("evalSubscribeRequest | onFeed | republishing in history; bindings = " + bindings)
+              BasicLogService.tweet("evalSubscribeRequest | onFeed | republishing in history; bindings = " + bindings)
+              agentMgr().post(
+                'user(
+                  'p1(cclFilter),
+                  // TODO(mike): temporary workaround until bindings bug is fixed.
+                  'p2('uid((parse(postedStr) \ "uid").extract[String])),
+                  'p3('old("_")),
+                  'p4('nil("_"))
+                ),
+                List(PortableAgentCnxn(agentCnxn.src, agentCnxn.label, agentCnxn.trgt)),
+                postedStr,
+                (optRsrc) => { println ("evalSubscribeRequest | onFeed | republished: uid = " + uid) }
+              )
+
               val content =
                 ("sessionURI" -> sessionURIStr) ~
                 ("pageOfPosts" -> List(postedStr)) ~
@@ -1209,25 +1242,56 @@ trait EvalHandler {
             case _ => throw new Exception("Unrecognized resource: " + optRsrc)
           }
         }
+        // TODO(mike): Workaround until bindings bug is fixed
+        val onRead: Option[mTT.Resource] => Unit = (optRsrc) => {
+          println("evalSubscribeRequest | onRead: optRsrc = " + optRsrc)
+          BasicLogService.tweet("evalSubscribeRequest | onRead: rsrc = " + optRsrc)
+          optRsrc match {
+            case None => ()
+            case Some(mTT.RBoundHM(Some(mTT.Ground(PostedExpr(
+              (PostedExpr(postedStr: String), filter: CnxnCtxtLabel[String,String,String], cnxn)
+            ))), bindings)) => {
+              val (cclFilter, jsonFilter, uid, age) = extractMetadata(filter)
+              val agentCnxn = cnxn.asInstanceOf[act.AgentCnxn]
+              val content =
+                ("sessionURI" -> sessionURIStr) ~
+                ("pageOfPosts" -> List(postedStr)) ~
+                ("connection" -> (
+                  ("source" -> agentCnxn.src.toString) ~
+                  ("label" -> agentCnxn.label) ~
+                  ("target" -> agentCnxn.trgt.toString)
+                )) ~
+                ("filter" -> jsonFilter)
+              val response = ("msgType" -> "evalSubscribeResponse") ~ ("content" -> content)
+              println("evalSubscribeRequest | onRead: response = " + compact(render(response)))
+              BasicLogService.tweet("evalSubscribeRequest | onRead: response = " + compact(render(response)))
+              CometActorMapper.cometMessage(sessionURIStr, compact(render(response)))
+            }
+            case Some(mTT.RBoundHM(Some(mTT.Ground(Bottom)),_)) => {
+              val content = 
+                ("sessionURI" -> sessionURIStr) ~
+                ("pageOfPosts" -> List[String]())
+              val response = ("msgType" -> "evalSubscribeResponse") ~ ("content" -> content)
+              println("evalSubscribeRequest | onRead: response = " + compact(render(response)))
+              BasicLogService.tweet("evalSubscribeRequest | onRead: response = " + compact(render(response)))
+              CometActorMapper.cometMessage(sessionURIStr, compact(render(response)))
+            }
+            case _ => throw new Exception("Unrecognized resource: " + optRsrc)
+          }
+        }
+        
         println("evalSubscribeRequest | feedExpr: calling feed")
         BasicLogService.tweet("evalSubscribeRequest | feedExpr: calling feed")
-        val uidCCL = (try {
-          fromTermString("vUID(\"" + (ec \ "uid").extract[String] + "\")").get
+        val uid = try {
+          'uid((ec \ "uid").extract[String])
         } catch {
-          case _: Throwable => fromTermString("vUID(UID)").get
-        }).asInstanceOf[CnxnCtxtLabel[String,String,String] with Factual]
-        val uidFilters = filters.map((filter) => filter match {
-          case CnxnCtxtBranch(tag, children) => 
-            new CnxnCtxtBranch[String,String,String](
-              tag,
-              uidCCL +: children
-            )
-          case leaf@CnxnCtxtLeaf(Right(_)) => leaf
-        })
-        for (filter <- uidFilters) {
+          case _: Throwable => 'uid("UID")
+        }
+        for (filter <- filters) {
           println("evalSubscribeRequest | feedExpr: filter = " + filter)
           BasicLogService.tweet("evalSubscribeRequest | feedExpr: filter = " + filter)
-          agentMgr().feed(filter, cnxns, onFeed)
+          agentMgr().feed('user('p1(filter), 'p2(uid), 'p3('new("_")), 'p4('nil("_"))), cnxns, onFeed)
+          agentMgr().read('user('p1(filter), 'p2(uid), 'p3('old("_")), 'p4('nil("_"))), cnxns, onRead)
         }
       }
       case "scoreExpr" => {
@@ -1239,7 +1303,7 @@ trait EvalHandler {
             case Some(mTT.RBoundHM(Some(mTT.Ground(PostedExpr(
               (PostedExpr(postedStr: String), filter: CnxnCtxtLabel[String,String,String], cnxn)
             ))), _)) => {
-              val (uid, jsonFilter) = cclToUI(filter)
+              val (cclFilter, jsonFilter, uid, age) = extractMetadata(filter)
               val agentCnxn = cnxn.asInstanceOf[act.AgentCnxn]
               val content =
                 ("sessionURI" -> sessionURIStr) ~
@@ -1275,21 +1339,14 @@ trait EvalHandler {
           case _ => throw new Exception("Couldn't parse staff: " + json)
         }
         BasicLogService.tweet("evalSubscribeRequest | feedExpr: calling score")
-        val uidCCL = (try {
-          fromTermString("vUID(\"" + (ec \ "uid").extract[String] + "\")").get
+        val uid = try {
+          'uid((ec \ "uid").extract[String])
         } catch {
-          case _: Throwable => fromTermString("vUID(UID)").get
-        }).asInstanceOf[CnxnCtxtLabel[String,String,String] with Factual]
-        val uidFilters = filters.map((filter) => filter match {
-          case CnxnCtxtBranch(tag, children) => 
-            new CnxnCtxtBranch[String,String,String](
-              tag,
-              uidCCL +: children
-            )
-          case leaf@CnxnCtxtLeaf(Right(_)) => leaf
-        })
-        for (filter <- uidFilters) {
-          agentMgr().score(filter, cnxns, staff, onScore)
+          case _: Throwable => 'uid("UID")
+        }
+        for (filter <- filters) {
+          agentMgr().score('user('p1(filter), 'p2(uid), 'p3('new("_")), 'p4('nil("_"))), cnxns, staff, onScore)
+          // TODO(mike): Make a read version of score, implement history for score.
         }
       }
       case "insertContent" => {
@@ -1297,19 +1354,12 @@ trait EvalHandler {
         BasicLogService.tweet("evalSubscribeRequest | insertContent")
         BasicLogService.tweet("evalSubscribeRequest | insertContent: calling post")
         val value = (ec \ "value").extract[String]
-        val uidCCL = fromTermString("vUID(\"" + (ec \ "uid").extract[String] + "\")").get
-          .asInstanceOf[CnxnCtxtLabel[String,String,String] with Factual]
-        val uidFilters = filters.map((filter) => filter match {
-          case CnxnCtxtBranch(tag, children) => 
-            new CnxnCtxtBranch[String,String,String](
-              tag,
-              uidCCL +: children
-            )
-        })
-        for (filter <- uidFilters) {
+        val uid = 'uid(Ground((ec \ "uid").extract[String]))
+        
+        for (filter <- filters) {
           BasicLogService.tweet("evalSubscribeRequest | insertContent: calling post with filter " + filter)
           agentMgr().post(
-            filter,
+            'user('p1(filter), 'p2(uid), 'p3('new("_")), 'p4('nil("_"))),
             cnxns,
             value,
             (optRsrc: Option[mTT.Resource]) => {
@@ -1491,5 +1541,33 @@ trait EvalHandler {
         optRsrc => println( "onCommencement five | " + optRsrc )
       }
     )
+  }
+  
+  def backupRequest(json: JValue) : Unit = {
+    val sessionURI = (json \ "content" \ "sessionURI").extract[String]
+    agentMgr().runProcess("mongodump", None, List(), (optRsrc) => {
+      println("backupRequest: optRsrc = " + optRsrc)
+      BasicLogService.tweet("backupRequest: optRsrc = " + optRsrc)
+      CometActorMapper.cometMessage(sessionURI, compact(render(
+        ("msgType" -> "backupResponse")~
+        ("content" ->
+          ("sessionURI" -> sessionURI)
+        )
+      )))
+    })
+  }
+
+  def restoreRequest(json: JValue) : Unit = {
+    val sessionURI = (json \ "content" \ "sessionURI").extract[String]
+    agentMgr().runProcess("mongorestore", None, List(), (optRsrc) => {
+      println("restoreRequest: optRsrc = " + optRsrc)
+      BasicLogService.tweet("restoreRequest: optRsrc = " + optRsrc)
+      CometActorMapper.cometMessage(sessionURI, compact(render(
+        ("msgType" -> "restoreResponse")~
+        ("content" ->
+          ("sessionURI" -> sessionURI)
+        )
+      )))
+    })
   }
 }
