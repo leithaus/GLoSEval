@@ -133,11 +133,6 @@
             <artifactId>json4s-jackson_${scala.versionsuffix}</artifactId>
             <version>3.1.0</version>
         </dependency>
-	<dependency>
-	    <groupId>m3</groupId>
-	    <artifactId>m3-json_2.10</artifactId>
-	    <version>1.0-SNAPSHOT</version>
-	</dependency>
         <dependency>
             <groupId>org.scalaz</groupId>
             <artifactId>scalaz-core_${scala.versionsuffix}</artifactId>
