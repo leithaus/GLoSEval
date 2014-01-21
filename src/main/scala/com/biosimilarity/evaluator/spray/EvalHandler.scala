@@ -873,7 +873,7 @@ trait EvalHandler {
                 }
               }
               def onAliasesFetch(jsonBlob: String): Option[mTT.Resource] => Unit = (optRsrc) => {
-                 BasicLogService.tweet("secureLogin | login | onPwmacFetch | onAliasesFetch: optRsrc = " + optRsrc)
+                BasicLogService.tweet("secureLogin | login | onPwmacFetch | onAliasesFetch: optRsrc = " + optRsrc)
                 val aliasCnxn = PortableAgentCnxn(capURI, "alias", capURI)
                 optRsrc match {
                   case None => ()
@@ -1151,6 +1151,7 @@ trait EvalHandler {
       ccl match {
         case CnxnCtxtBranch(tag, List(CnxnCtxtLeaf(Right(_)))) => List(tag.substring(1))
         case CnxnCtxtBranch(tag, children) => tag.substring(1) :: cclToPath(children(0))
+        case CnxnCtxtLeaf(Right(_)) => List()
       }
     }
     // Assume ccl is of the form user(p1(all(...)), p2(uid(...)), p3(new(_)|old(_)), p4(nil(_)))
@@ -1175,6 +1176,27 @@ trait EvalHandler {
           case CnxnCtxtBranch(ageStr: String, _) => ageStr
         }
       )
+    }
+  }
+
+  def subst(
+    ccl: CnxnCtxtLabel[String, String, String] with Factual,
+    bindings: Map[String, CnxnCtxtLabel[String, String, String] with Factual]
+  ) : CnxnCtxtLabel[String, String, String] with Factual = {
+    import com.biosimilarity.lift.lib.term.conversion._
+    import com.biosimilarity.lift.model.store._
+    import com.biosimilarity.lift.lib._
+    object CCLSubst extends CnxnSubstitution[String,String,String] with CnxnString[String,String,String]
+    CCLSubst.substitute(ccl)(bindings)
+  }
+  
+  def toTermString(ccl: CnxnCtxtLabel[String, String, String] with Factual): String = {
+    ccl match {
+      case CnxnCtxtBranch(functor, factuals) => {
+        functor + "(" + factuals.map(toTermString).mkString(",") + ")"
+      }
+      case CnxnCtxtLeaf(Left(s)) => compact(render(JString(s)))
+      case CnxnCtxtLeaf(Right(s)) => s
     }
   }
 
@@ -1208,18 +1230,44 @@ trait EvalHandler {
             BasicLogService.tweet("evalSubscribeRequest | onFeed: rsrc = " + optRsrc)
             optRsrc match {
               case None => ()
-              case Some(mTT.RBoundHM(Some(mTT.Ground(PostedExpr(
-                (PostedExpr(postedStr: String), filter: CnxnCtxtLabel[String,String,String], cnxn, bindings)
-              ))), _)) => {
+              case Some(mTT.RBoundHM(Some(mTT.Ground(PostedExpr(tuple))), _)) => {
+                val (postedStr, filter, cnxn, bindings) = tuple match {
+                  case (a, b, c, d) => (
+                    a match {
+                      case PostedExpr(postedStr: String) => postedStr
+                      case _ => throw new Exception("Expected PostedExpr(postedStr: String)")
+                    },
+                    b match {
+                      case filter: CnxnCtxtLabel[String,String,String] with Factual => filter
+                      case _ => throw new Exception("Expected CnxnCtxtLabel[String,String,String] with Factual")
+                    },
+                    c,
+                    d.asInstanceOf[mTT.RBoundAList]
+                  )
+                  case _ => throw new Exception("Wrong number of elements")
+                }
                 val (cclFilter, jsonFilter, uid, age) = extractMetadata(filter)
                 val agentCnxn = cnxn.asInstanceOf[act.AgentCnxn]
                 println("evalSubscribeRequest | onFeed | republishing in history; bindings = " + bindings)
                 BasicLogService.tweet("evalSubscribeRequest | onFeed | republishing in history; bindings = " + bindings)
+                val arr = parse(postedStr).asInstanceOf[JArray].arr
+                val json = compact(render(arr(0)))
+                val originalFilter = fromTermString(arr(1).asInstanceOf[JString].s).get.asInstanceOf[
+                  CnxnCtxtLabel[String,String,String] with Factual
+                ]
+                /*
+                val originalFilter = subst(
+                  cclFilter,
+                  Map(bindings.assoc.get.asInstanceOf[
+                    List[(String, CnxnCtxtLabel[String,String,String] with Factual)]
+                  ]:_*)
+                )
+                */
                 agentMgr().post(
                   'user(
-                    'p1(cclFilter),
+                    'p1(originalFilter),
                     // TODO(mike): temporary workaround until bindings bug is fixed.
-                    'p2('uid((parse(postedStr) \ "uid").extract[String])),
+                    'p2('uid((arr(0) \ "uid").extract[String])),
                     'p3('old("_")),
                     'p4('nil("_"))
                   ),
@@ -1230,7 +1278,7 @@ trait EvalHandler {
 
                 val content =
                   ("sessionURI" -> sessionURIStr) ~
-                  ("pageOfPosts" -> List(postedStr)) ~
+                  ("pageOfPosts" -> List(json)) ~
                   ("connection" -> (
                     ("source" -> agentCnxn.src.toString) ~
                     ("label" -> agentCnxn.label) ~
@@ -1263,11 +1311,13 @@ trait EvalHandler {
               case Some(mTT.RBoundHM(Some(mTT.Ground(PostedExpr(
                 (PostedExpr(postedStr: String), filter: CnxnCtxtLabel[String,String,String], cnxn, bindings)
               ))), _)) => {
+                val arr = parse(postedStr).asInstanceOf[JArray].arr
+                val json = compact(render(arr(0)))
                 val (cclFilter, jsonFilter, uid, age) = extractMetadata(filter)
                 val agentCnxn = cnxn.asInstanceOf[act.AgentCnxn]
                 val content =
                   ("sessionURI" -> sessionURIStr) ~
-                  ("pageOfPosts" -> List(postedStr)) ~
+                  ("pageOfPosts" -> List(json)) ~
                   ("connection" -> (
                     ("source" -> agentCnxn.src.toString) ~
                     ("label" -> agentCnxn.label) ~
@@ -1325,9 +1375,11 @@ trait EvalHandler {
               ))), _)) => {
                 val (cclFilter, jsonFilter, uid, age) = extractMetadata(filter)
                 val agentCnxn = cnxn.asInstanceOf[act.AgentCnxn]
+                val arr = parse(postedStr).asInstanceOf[JArray].arr
+                val json = compact(render(arr(0)))
                 val content =
                   ("sessionURI" -> sessionURIStr) ~
-                  ("pageOfPosts" -> List(postedStr)) ~
+                  ("pageOfPosts" -> List(json)) ~
                   ("connection" -> (
                     ("source" -> agentCnxn.src.toString) ~
                     ("label" -> agentCnxn.label) ~
@@ -1386,7 +1438,7 @@ trait EvalHandler {
             agentMgr().post(
               'user('p1(filter), 'p2(uid), 'p3('new("_")), 'p4('nil("_"))),
               cnxns,
-              value,
+              "[" + value + ", " + compact(render(JString(toTermString(filter)))) + "]",
               (optRsrc: Option[mTT.Resource]) => {
                 println("evalSubscribeRequest | insertContent | onPost: optRsrc = " + optRsrc)
                 BasicLogService.tweet("evalSubscribeRequest | insertContent | onPost: optRsrc = " + optRsrc)
