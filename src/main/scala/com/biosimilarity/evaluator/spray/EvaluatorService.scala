@@ -81,6 +81,8 @@ case class ClientGc(id: String) extends Serializable
 
 class CometActor extends Actor with Serializable {
   @transient
+  val cometLock = new scala.concurrent.Lock()
+  @transient
   val aliveTimers = new HashMap[String, Cancellable]   // list of timers that keep track of alive clients
   @transient
   val toTimers = new HashMap[String, Cancellable]      // list of timeout timers for clients
@@ -120,20 +122,25 @@ class CometActor extends Actor with Serializable {
     }
     
     case PollTimeout(id) => synchronized {
+      cometLock.acquire()
       requests.get(id).map(_.complete(HttpResponse(entity=compact(render(
         List(("msgType" -> "sessionPong") ~ ("content" -> ("sessionURI" -> id)))
       )))))
       requests -= id
       toTimers -= id
+      cometLock.release()
     }
     
     case ClientGc(id) => synchronized {
+      cometLock.acquire()
       requests -= id
       toTimers -= id
       aliveTimers -= id
+      cometLock.release()
     }
 
     case CometMessage(id, data) => synchronized {
+      cometLock.acquire()
       val set = sets.get(id).getOrElse({
         val newSet = new HashSet[String]
         sets += (id -> newSet)
@@ -147,6 +154,7 @@ class CometActor extends Actor with Serializable {
         sets -= id
         reqCtx.complete(HttpResponse(entity = "[" + set.toList.mkString(",") + "]"))
       }
+      cometLock.release()
     }
   }
 }

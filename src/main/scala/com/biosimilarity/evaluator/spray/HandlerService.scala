@@ -60,6 +60,8 @@ with EvaluationCommsService
 with EvalConfig
 with DSLCommLinkConfiguration
 with Serializable {
+  import DSLCommLink.mTT
+  override type Rsrc = mTT.Resource
 }
 
 package usage {
