@@ -158,7 +158,7 @@ case class CloseSessionException(sessionURI: String, message: String) extends Ex
 
 // this trait defines our service behavior independently from the service actor
 trait EvaluatorService extends HttpService
-{  
+{
   import DSLCommLink.mTT
   import EvalHandlerService._
 
@@ -214,7 +214,12 @@ trait EvaluatorService extends HttpService
     ("introductionConfirmationRequest", introductionConfirmationRequest),
     // Database dump/restore
     ("backupRequest", backupRequest),
-    ("restoreRequest", restoreRequest)
+    ("restoreRequest", restoreRequest),
+    // Verification Protocol
+    ("submitClaim", submitClaim),
+    ("produceClaim", produceClaim),
+    ("validateClaim", validateClaim),
+    ("completeClaim", completeClaim)
   )
 
   @transient
@@ -230,16 +235,20 @@ trait EvaluatorService extends HttpService
           entity(as[String]) { jsonStr =>
             (ctx) => {
               try {
+                println("Got a post request...")
                 BasicLogService.tweet("json: " + jsonStr)
                 val json = parse(jsonStr)
                 val msgType = (json \ "msgType").extract[String]
+                println("Got message type: %s".format(msgType))
                 asyncMethods.get(msgType) match {
                   case Some(fn) => {
+                    println("Got an async function...")
                     fn(json)
                     ctx.complete(StatusCodes.OK)
                   }
                   case None => syncMethods.get(msgType) match {
                     case Some(fn) => {
+                      println("Got a sync function...")
                       var key = UUID.randomUUID.toString
                       CompletionMapper.map += (key -> ctx)
                       fn(json, key)

@@ -1,0 +1,44 @@
+body {
+    width: 100%;
+    height: 100%;
+    background: black;
+}
+
+.layer {
+    display: block;
+    position: absolute;
+    background: transparent;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.layer > .panel {
+    display: none;
+    position: absolute;
+    background: transparent;
+    height: 100%;
+    width: 50%;
+    overflow: auto;
+}
+
+.panel {
+    font-family: monospace;
+}
+
+.panel.left {
+    left: 0;
+}
+
+.panel.right {
+    right: 0;
+}
+
+.layer>.panel.left:first-of-type {
+    display: block;
+}
+
+.layer>.panel.right:first-of-type {
+    display: block;
+}

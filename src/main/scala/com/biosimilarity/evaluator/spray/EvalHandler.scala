@@ -43,6 +43,24 @@ import java.util.Date
 import java.util.UUID
 
 import java.net.URI
+import com.protegra_ati.agentservices.store.util.Sugar.Tweet
+import com.protegra_ati.agentservices.protocols.verification._
+import com.biosimilarity.evaluator.distribution.bfactory.BFactoryDefaultServiceContext._
+import scala.Some
+import spray.http.HttpResponse
+import spray.routing.RequestContext
+import com.biosimilarity.evaluator.distribution.PortableAgentBiCnxn
+import com.biosimilarity.evaluator.spray.CometMessage
+import com.biosimilarity.evaluator.distribution.PortableAgentCnxn
+import com.biosimilarity.evaluator.spray.InitializeSessionException
+import com.biosimilarity.evaluator.distribution.diesel.DieselEngineScope._
+import scala.Some
+import spray.http.HttpResponse
+import spray.routing.RequestContext
+import com.biosimilarity.evaluator.distribution.PortableAgentBiCnxn
+import com.biosimilarity.evaluator.spray.CometMessage
+import com.biosimilarity.evaluator.distribution.PortableAgentCnxn
+import com.biosimilarity.evaluator.spray.InitializeSessionException
 
 // Mask the json4s symbol2jvalue implicit so we can use the PrologDSL
 object symbol2jvalue {}
@@ -51,6 +69,7 @@ object CompletionMapper {
   @transient
   val map = new HashMap[String, RequestContext]()
   def complete(key: String, message: String): Unit = {
+    println("In CompletionMapper.complete")
     for (reqCtx <- map.get(key)) {
       reqCtx.complete(HttpResponse(200, message))
     }
@@ -141,7 +160,8 @@ trait EvalHandler {
             userPWDBLabel,
             List(agentIdCnxn),
             // TODO(mike): do proper context-aware interpolation
-            "pwdb(" + List(salt, toHex(hash), "user", aesHashK).map('"'+_+'"').mkString(",") + ")",
+            // "pwdb(" + List(salt, toHex(hash), "user", aesHashK).map('"'+_+'"').mkString(",") + ")",
+            s"""pwdb("$salt", "${toHex(hash)}", "user", "$aesHashK")""",
             (optRsrc: Option[mTT.Resource]) => {
               CompletionMapper.complete(key, compact(render(
                 ("msgType" -> "createAgentResponse") ~
@@ -403,6 +423,7 @@ trait EvalHandler {
   ) : Unit = {
     import DSLCommLink.mTT
     val cap = if (email == "") UUID.randomUUID.toString else storeCapByEmail(email)
+    println("Here 1")
     BasicLogService.tweet("secureSignup email="+email+", password="+password+", cap="+cap)
     val macInstance = Mac.getInstance("HmacSHA256")
     macInstance.init(new SecretKeySpec("5ePeN42X".getBytes("utf-8"), "HmacSHA256"))
@@ -414,6 +435,7 @@ trait EvalHandler {
     macInstance.init(new SecretKeySpec("pAss#4$#".getBytes("utf-8"), "HmacSHA256"))
     val pwmac = macInstance.doFinal(password.getBytes("utf-8")).map("%02x" format _).mkString
 
+    println("Here 2")
     BasicLogService.tweet("secureSignup posting pwmac")
     val (erql, erspl) = agentMgr().makePolarizedPair()
     agentMgr().post(erql, erspl)(
@@ -423,7 +445,7 @@ trait EvalHandler {
       ( optRsrc : Option[mTT.Resource] ) => {
         BasicLogService.tweet("secureSignup onPost1: optRsrc = " + optRsrc)
         optRsrc match {
-          case None => ()
+          case None => println("Got None")
           case Some(_) => {
             val (erql, erspl) = agentMgr().makePolarizedPair()
             agentMgr().post(erql, erspl)(
@@ -431,6 +453,7 @@ trait EvalHandler {
               List(capSelfCnxn),
               jsonBlob,
               ( optRsrc : Option[mTT.Resource] ) => {
+                println("Here 3")
                 BasicLogService.tweet("secureSignup onPost2: optRsrc = " + optRsrc)
                 optRsrc match {
                   case None => ()
@@ -441,6 +464,7 @@ trait EvalHandler {
                       List(capSelfCnxn),
                       """["alias"]""",
                       ( optRsrc : Option[mTT.Resource] ) => {
+                        println("Here 4")
                         BasicLogService.tweet("secureSignup onPost3: optRsrc = " + optRsrc)
                         optRsrc match {
                           case None => ()
@@ -452,6 +476,7 @@ trait EvalHandler {
                               List(aliasCnxn),
                               """[]""",
                               ( optRsrc : Option[mTT.Resource] ) => {
+                                println("Here 5")
                                 BasicLogService.tweet("secureSignup onPost4: optRsrc = " + optRsrc)
                                 optRsrc match {
                                   case None => ()
@@ -460,6 +485,7 @@ trait EvalHandler {
                                       cap,
                                       aliasCnxn,
                                       Unit => {
+                                        println("Here 6")
                                         CompletionMapper.complete(key, compact(render(
                                           ("msgType" -> "createUserResponse") ~
                                             ("content" -> ("agentURI" -> ("agent://cap/" + capAndMac)))
@@ -557,6 +583,29 @@ trait EvalHandler {
               }
             )
 
+            // TODO: document this
+            // Launch Verifier Behavior
+            val c2v = PortableAgentCnxn(readCnxn.src, "NODE_C2V_LABEL", readCnxn.trgt)
+
+            bFactoryMgr().commenceInstance(
+              verifierConnection,
+              verifierLabel,
+              List(aliasCnxn, c2v),
+              Nil,
+              { _: Any => println( "in Verifier commenceInstance continuation" ) })
+
+            // Launch Relying Party Behavior
+            val c2r = PortableAgentCnxn(readCnxn.src, "NODE_C2R_LABEL", readCnxn.trgt)
+
+            bFactoryMgr().commenceInstance(
+              relyingPartyConnection,
+              relyingPartyLabel,
+              List(aliasCnxn, c2r),
+              Nil,
+              { _: Any => println( "in Relying Party commenceInstance continuation" ) })
+
+
+            // Notify the user of the connect.
             CometActorMapper.cometMessage(sessionURIStr, compact(render(
               ("msgType" -> "connectNotification") ~
               ("content" ->
@@ -568,6 +617,7 @@ trait EvalHandler {
                 ("introProfile" -> profileData)
               )
             )))
+
           }
         }
       }
@@ -1619,6 +1669,10 @@ trait EvalHandler {
         optRsrc => println( "onCommencement five | " + optRsrc )
       }
     )
+
+    // Launch claimant
+    bFactoryMgr().commenceInstance(claimantConnection, claimantLabel, List(aliasCnxn), Nil, {
+      (_: Any) => Tweet("In claimant commenceInstance continuation") })
   }
   
   def backupRequest(json: JValue) : Unit = {
@@ -1647,5 +1701,83 @@ trait EvalHandler {
         )
       )))
     })
+  }
+
+
+  // TODO: document this
+
+  import com.protegra_ati.agentservices.store.util.Sugar._
+  import com.protegra_ati.agentservices.protocols.verification.FilteredConnection._
+
+  implicit val kvdb: Being.AgentKVDBNode[PersistedKVDBNodeRequest, PersistedKVDBNodeResponse] =
+    com.biosimilarity.evaluator.distribution.diesel.DieselEngineCtor.dslEvaluatorAgent()
+
+  private def parsePortableAgentCnxn(json: JValue): PortableAgentCnxn = {
+    val src = (json \ "source").extract[String]
+    val label = (json \ "label").extract[String]
+    val trgt = (json \ "target").extract[String]
+    PortableAgentCnxn(src, label, trgt)
+  }
+
+  private def parseTokenAndClaim(json: JValue): (String, String) = {
+    val token = (json \ "verificationToken").extract[String]
+    val claim = (json \ "claim").extract[String]
+    (token, claim)
+  }
+
+  def submitClaim(json: JValue) {
+    println("In submitClaim")
+    Tweet("In submitClaim")
+
+    val (token, claim) = parseTokenAndClaim(json \ "content")
+    val c2v = parsePortableAgentCnxn(json \ "content" \ "verifier")
+    val c2r = parsePortableAgentCnxn(json \ "content" \ "relyingParty")
+
+    val alias = c2v.src
+    val aliasCnxn = PortableAgentCnxn(alias, "alias", alias)
+
+    aliasCnxn ! SubmitClaim(token, claim, c2v, c2r)
+  }
+
+  def produceClaim(json: JValue) {
+    println("In produceClaim")
+    Tweet("In produceClaim")
+
+    val (token, claim) = parseTokenAndClaim(json \ "content")
+    val r2c = parsePortableAgentCnxn(json \ "content" \ "claimant")
+    val r2v = parsePortableAgentCnxn(json \ "content" \ "verifier")
+
+    val alias = r2c.src
+    val aliasCnxn = PortableAgentCnxn(alias, "alias", alias)
+
+    aliasCnxn ! ProduceClaim(token, claim, r2c, r2v)
+  }
+
+  def validateClaim(json: JValue) {
+    println("In validateClaim")
+    Tweet("In validateClaim")
+
+    val (token, claim) = parseTokenAndClaim(json \ "content")
+    val response = (json \ "content" \ "response").extract[Boolean]
+    val v2c = parsePortableAgentCnxn(json \ "content" \ "claimant")
+    val v2r = parsePortableAgentCnxn(json \ "content" \ "relyingParty")
+
+    val alias = v2c.src
+    val aliasCnxn = PortableAgentCnxn(alias, "alias", alias)
+
+    aliasCnxn ! ValidateClaim(token, claim, response, v2c, v2r)
+  }
+
+  def completeClaim(json: JValue) {
+    Tweet("In completeClaim")
+
+    val (token, claim) = parseTokenAndClaim(json \ "content")
+    val r2c = parsePortableAgentCnxn(json \ "content" \ "claimant")
+    val r2v = parsePortableAgentCnxn(json \ "content" \ "verifier")
+
+    val alias = r2c.src
+    val aliasCnxn = PortableAgentCnxn(alias, "alias", alias)
+
+    aliasCnxn ! CompleteClaim(token, claim, r2c, r2v)
   }
 }
