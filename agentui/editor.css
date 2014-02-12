@@ -1,0 +1,42 @@
+#coding {
+    z-index: 999;
+}
+
+#editor {
+    width: 50%;
+    height: 100%;
+    background: transparent;
+    color: #FFFFFF;
+    font-size: 10pt;
+    resize: none;
+    padding: 0;
+    border: 0;
+    wrap: soft;
+}
+
+#output {
+    color: #FFFFFF;
+    font-size: 10pt;
+}
+
+#console {
+    color: #FFFFFF;
+    font-size: 10pt;
+}
+
+#meta {
+    position:absolute;
+    right:0;
+    width: 50%;
+    border-top: 1px solid white;
+    min-height: 2em;
+    bottom:0;
+    background: black;
+    color:#862322;
+    font-size:10px;
+    line-height:2em;
+    overflow:hidden;
+    text-transform:uppercase;
+    z-index: 1000;
+    font-size: 10pt;
+}

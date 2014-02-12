@@ -1,0 +1,69 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+
+<link rel="stylesheet" type="text/css" href="./reset.css">
+<link rel="stylesheet" type="text/css" href="./frames.css">
+<link rel="stylesheet" type="text/css" href="./editor.css">
+<link rel="stylesheet" type="text/css" href="./canvas.css">
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+<script type="text/coffeescript" src="./packages/prelude.coffee"></script>
+<script src="./coffee-script.js"></script>
+<script src="./underscore.js"></script>
+
+<meta property="og:site_name" content="Coffee Shell" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Coffee Shell Interactive Debugger" />
+<meta property="og:url" content="http://brianledger.com/coffeeshell" />
+<meta property="og:count" content="0" />
+<meta property="og:image" content="http://b.vimeocdn.com/ts/104/307/104307356_640.jpg" />
+<meta property="og:video" content="http://vimeo.com/moogaloop.swf?clip_id=15529423" />
+<meta property="og:video:type" content="application/x-shockwave-flash" />
+<meta property="og:video:width" content="640" />
+<meta property="og:video:height" content="360" />
+<meta property="og:description" content="Hello!  I am an interactive coffeescript shell, run on your client!" />
+
+<title>CoffeEmacs</title>
+</head>
+<body>
+<div id="coding" class="layer">
+  <textarea id="editor" class="panel left" rows="100"
+  spellcheck="false">
+#include API
+
+
+api.post
+  "msgType": "createUserRequest"
+  "content":
+    "email": "brian.peter.ledger@gmail.com",
+    "password": "hurdehurrr",
+    "jsonBlob":
+      "name": "Brian"
+  "success": (jqXHR, status) => 
+    echo "success"
+    echo status
+  "error": (jhXQR, status, error) => 
+    echo "error: "
+    echo status
+    echo error
+  "complete": => echo "done"
+  </textarea>
+  <pre id="console" class="panel right" rows="100" spellcheck="false">
+  ###############################
+  # Prototyping in CoffeeScript #
+  ###############################
+
+  <<< Input on the left
+
+  >>> Output on the right
+
+  Press ctrl-enter to evaluate!
+  </pre>
+  <pre id="output" class="panel right" rows="100" spellcheck="false"></pre>
+  <pre id="off" class="panel right"></pre>
+  <div id="meta" style="display: none; "></div>
+</div>
+<div id="drawing" class="layer">
+  <canvas id="canvas">
+</div>
+</body> </html>
