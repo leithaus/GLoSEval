@@ -750,6 +750,8 @@ trait EvalHandler {
     def login(cap: String): Unit = {
       val capURI = new URI("agent://" + cap)
       val capSelfCnxn = PortableAgentCnxn(capURI, "identity", capURI)
+      val usid = UUID.randomUUID.toString.substring(0,8)
+      val sessionID = "agent-session://" + cap + "/" + usid
       val onPwmacFetch: Option[mTT.Resource] => Unit = (rsrc) => {
         BasicLogService.tweet("secureLogin | login | onPwmacFetch: rsrc = " + rsrc)
         rsrc match {
@@ -782,13 +784,13 @@ trait EvalHandler {
                       case PostedExpr( (PostedExpr(labelList: String), _, _, _) ) => {
                         // TODO: Replace notification block below with behavior code
                         val aliasCnxn = PortableAgentCnxn(capURI, "alias", capURI)
-                        listenIntroductionNotification("agent-session://" + cap, aliasCnxn)
-                        listenConnectNotification("agent-session://" + cap, aliasCnxn)
+                        listenIntroductionNotification(sessionID, aliasCnxn)
+                        listenConnectNotification(sessionID, aliasCnxn)
 
                         val biCnxnListObj = Serializer.deserialize[List[PortableAgentBiCnxn]](biCnxnList)
 
                         val content = 
-                          ("sessionURI" -> ("agent-session://" + cap)) ~
+                          ("sessionURI" -> sessionID) ~
                           ("listOfAliases" -> parse(aliasList)) ~
                           ("defaultAlias" -> "alias") ~
                           ("listOfLabels" -> parse(labelList)) ~ // for default alias
@@ -836,20 +838,20 @@ trait EvalHandler {
                                 case Some(rbnd@mTT.RBoundHM(Some(mTT.Ground(v)), _)) => {
                                   v match {
                                     case PostedExpr( (PostedExpr(jsonBlob: String), _, _, _) ) => {
-                                      CometActorMapper.cometMessage(("agent-session://" + cap), compact(render(
+                                      CometActorMapper.cometMessage(sessionID, compact(render(
                                         ("msgType" -> "connectionProfileResponse") ~
                                         ("content" -> (
-                                          ("sessionURI" -> ("agent-session://" + cap)) ~
+                                          ("sessionURI" -> sessionID) ~
                                           ("connection" -> biCnxnToJObject(biCnxn)) ~
                                           ("jsonBlob" -> jsonBlob)
                                         ))
                                       )))
                                     }
                                     case Bottom => {
-                                      CometActorMapper.cometMessage(("agent-session://" + cap), compact(render(
+                                      CometActorMapper.cometMessage(sessionID, compact(render(
                                         ("msgType" -> "connectionProfileError") ~
                                         ("content" -> (
-                                          ("sessionURI" -> ("agent-session://" + cap)) ~
+                                          ("sessionURI" -> sessionID) ~
                                           ("connection" -> biCnxnToJObject(biCnxn)) ~
                                           ("reason" -> "Not found")
                                         ))
