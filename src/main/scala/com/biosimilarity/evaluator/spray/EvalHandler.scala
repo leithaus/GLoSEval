@@ -1360,11 +1360,25 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
                               )))
                             }
                             case PostedExpr( (PostedExpr( encryptedKey : String ), _, _, _) ) => {
-                             // BUGBUG : lgm -- fix the padding and
-                             // uncomment these lines
-                             val btcWIFKey = decryptWithSaltedPassword(password, hexStringToByteArray(encryptedKey)).map(_.toChar).mkString
-                             btcKeyMapper.map += ((sessionToken, btcWIFKey))
-                             println("onLabelsFetch / fetch btc wifkey: Added " + (sessionToken,btcWIFKey) + "to in-memory map")
+                              val btcWIFKey = decryptWithSaltedPassword(password, hexStringToByteArray(encryptedKey)).map(_.toChar).mkString
+                              btcKeyMapper.map += ((sessionToken, btcWIFKey))
+                              println("onLabelsFetch / fetch btc wifkey: Added " + (sessionToken,btcWIFKey) + "to in-memory map")
+
+                              val biCnxnListObj = Serializer.deserialize[List[PortableAgentBiCnxn]](biCnxnList)
+
+                              val content = 
+                               ("sessionURI" -> sessionURI) ~
+                               ("listOfAliases" -> parse(aliasList)) ~
+                               ("defaultAlias" -> defaultAlias) ~
+                               ("listOfLabels" -> parse(labelList)) ~ // for default alias
+                               ("listOfConnections" -> biCnxnListObj.map(biCnxnToJObject(_))) ~  // for default alias
+                               ("lastActiveLabel" -> "") ~
+                               ("jsonBlob" -> parse(jsonBlob))
+
+                              CompletionMapper.complete(key, compact(render(
+                               ("msgType" -> "initializeSessionResponse") ~
+                               ("content" -> content) 
+                              )))
                             }
                           }
                         }
@@ -1385,22 +1399,6 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
                         }
                       }
                     )
-
-                    val biCnxnListObj = Serializer.deserialize[List[PortableAgentBiCnxn]](biCnxnList)
-                    
-                    val content = 
-                      ("sessionURI" -> sessionURI) ~
-                      ("listOfAliases" -> parse(aliasList)) ~
-                      ("defaultAlias" -> defaultAlias) ~
-                      ("listOfLabels" -> parse(labelList)) ~ // for default alias
-                      ("listOfConnections" -> biCnxnListObj.map(biCnxnToJObject(_))) ~  // for default alias
-                      ("lastActiveLabel" -> "") ~
-                      ("jsonBlob" -> parse(jsonBlob))
-                    
-                    CompletionMapper.complete(key, compact(render(
-                      ("msgType" -> "initializeSessionResponse") ~
-                      ("content" -> content) 
-                    )))
                   }
                   case Bottom => {
                     CompletionMapper.complete(key, compact(render(
