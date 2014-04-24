@@ -159,9 +159,9 @@ trait BTCCryptoUtilities {
     val ivSpec = new IvParameterSpec(iv)
 
     // Encrypt or decrypt the data with the pw-derived key
-    val aes = Cipher.getInstance("AES/CBC/PKCS5Padding");
-    aes.init(mode, keySpec, ivSpec);
-    aes.doFinal(bytes);
+    val aes = Cipher.getInstance("AES/CBC/PKCS5Padding")
+    aes.init(mode, keySpec, ivSpec)
+    aes.doFinal(data)
   }
 
   def encryptWithSaltedPassword(password: String, data: Array[Byte]): Array[Byte] = {
@@ -174,10 +174,10 @@ trait BTCCryptoUtilities {
     val blocks: Int = size / 16 + (if (size % 16 > 0) 1 else 0)
     val bytes = new Array[Byte](16 * blocks)
     data.copyToArray(bytes)
-    bytes[bytes.size - 4] = (size >>> 24) & 0xff
-    bytes[bytes.size - 3] = (size >>> 16) & 0xff
-    bytes[bytes.size - 2] = (size >>> 8) & 0xff
-    bytes[bytes.size - 1] = size & 0xff
+    bytes(bytes.size - 4) = (size >>> 24).byteValue
+    bytes(bytes.size - 3) = (size >>> 16).byteValue
+    bytes(bytes.size - 2) = (size >>> 8).byteValue
+    bytes(bytes.size - 1) = size.byteValue
     
     salt ++ saltedPasswordHelper(password, salt, bytes, Cipher.ENCRYPT_MODE)
   }
@@ -190,10 +190,10 @@ trait BTCCryptoUtilities {
     
     val padded = saltedPasswordHelper(password, salt, encrypted, Cipher.DECRYPT_MODE)
     val size: Int = 
-      padded[padded.size - 4] << 24 +
-      padded[padded.size - 3] << 16 +
-      padded[padded.size - 2] << 8 + 
-      padded[padded.size - 1]
+      padded(padded.size - 4) << 24 +
+      padded(padded.size - 3) << 16 +
+      padded(padded.size - 2) << 8 + 
+      padded(padded.size - 1)
     val bytes = new Array[Byte](size)
     padded.copyToArray(bytes, 0, size)
     bytes
