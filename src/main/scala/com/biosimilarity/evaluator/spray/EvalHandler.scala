@@ -1345,46 +1345,46 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
 
                     // Fetch the encrypted wallet, decrypt it with the password and
                     // store it in memory under the sessionToken
-                     fetch(
-                       btcWIFKeyLongTermStorage,
-                       List( aliasCnxn ),
-                       ( optRsrc : Option[mTT.Resource] ) => {
-                        // Unpack encrypted key from resource
-                         def handleRsp( v : ConcreteHL.HLExpr ) : Unit = {
-                           v match {
-                            // BUGBUG : lgm -- there's a race
-                             case Bottom => {
-                               CompletionMapper.complete(key, compact(render(
-                                 ("msgType" -> "initializeSessionError") ~
-                                 ("content" -> ("reason" -> "Failed to load BTC WIF key.")) 
-                               )))
-                             }
-                             case PostedExpr( (PostedExpr( encryptedKey : String ), _, _, _) ) => {
-                              // BUGBUG : lgm -- fix the padding and
-                              // uncomment these lines
-                              val btcWIFKey = decryptWithSaltedPassword(password, hexStringToByteArray(encryptedKey)).map(_.toChar).mkString
-                              btcKeyMapper.map += ((sessionToken, btcWIFKey))
-                              println("onLabelsFetch / fetch btc wifkey: Added " + (sessionToken,btcWIFKey) + "to in-memory map")
-                             }
-                           }
-                         }
-                         optRsrc match {
-                           case None => ();
-                           case Some(mTT.Ground(v)) => {
-                             handleRsp( v ) 
-                           }
-                           case Some(mTT.RBoundHM(Some(mTT.Ground(v)), _)) => {
-                             handleRsp( v ) 
-                           }
-                           case _ => {
-                             CompletionMapper.complete(key, compact(render(
-                               ("msgType" -> "initializeSessionError") ~
-                               ("content" -> ("reason" -> ("Unrecognized resource: optRsrc = " + optRsrc)))
-                             )))
-                           }
-                         }
-                       }
-                     )
+                    fetch(
+                      btcWIFKeyLongTermStorage,
+                      List( aliasCnxn ),
+                      ( optRsrc : Option[mTT.Resource] ) => {
+                       // Unpack encrypted key from resource
+                        def handleRsp( v : ConcreteHL.HLExpr ) : Unit = {
+                          v match {
+                           // BUGBUG : lgm -- there's a race
+                            case Bottom => {
+                              CompletionMapper.complete(key, compact(render(
+                                ("msgType" -> "initializeSessionError") ~
+                                ("content" -> ("reason" -> "Failed to load BTC WIF key.")) 
+                              )))
+                            }
+                            case PostedExpr( (PostedExpr( encryptedKey : String ), _, _, _) ) => {
+                             // BUGBUG : lgm -- fix the padding and
+                             // uncomment these lines
+                             val btcWIFKey = decryptWithSaltedPassword(password, hexStringToByteArray(encryptedKey)).map(_.toChar).mkString
+                             btcKeyMapper.map += ((sessionToken, btcWIFKey))
+                             println("onLabelsFetch / fetch btc wifkey: Added " + (sessionToken,btcWIFKey) + "to in-memory map")
+                            }
+                          }
+                        }
+                        optRsrc match {
+                          case None => ();
+                          case Some(mTT.Ground(v)) => {
+                            handleRsp( v ) 
+                          }
+                          case Some(mTT.RBoundHM(Some(mTT.Ground(v)), _)) => {
+                            handleRsp( v ) 
+                          }
+                          case _ => {
+                            CompletionMapper.complete(key, compact(render(
+                              ("msgType" -> "initializeSessionError") ~
+                              ("content" -> ("reason" -> ("Unrecognized resource: optRsrc = " + optRsrc)))
+                            )))
+                          }
+                        }
+                      }
+                    )
 
                     val biCnxnListObj = Serializer.deserialize[List[PortableAgentBiCnxn]](biCnxnList)
                     
