@@ -262,8 +262,6 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
           // AES_hash(K)
           val aesHashK = toHex(aes.doFinal(bytes))
         
-          //val (erql, erspl) = agentMgr().makePolarizedPair()
-          //agentMgr().post(erql, erspl)(
           post(
             userPWDBLabel,
             List(agentIdCnxn),
@@ -1228,12 +1226,8 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
       val capURI = new URI("agent://" + cap)
       val capSelfCnxn = PortableAgentCnxn(capURI, "identity", capURI)
 
-      //val (erql, erspl) = agentMgr().makePolarizedPair()
-      // See if the email is already there
-      //agentMgr().read(
       def handleRsp( ) : Unit = {
         // No such email exists, create it
-        //val (erql, erspl) = agentMgr().makePolarizedPair()
         post[String](
           tokenLabel,
           List(tokenCnxn),
@@ -1332,46 +1326,46 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
 
                     // Fetch the encrypted wallet, decrypt it with the password and
                     // store it in memory under the sessionToken
-//                     fetch(
-//                       btcWIFKeyLongTermStorage,
-//                       List( aliasCnxn ),
-//                       ( optRsrc : Option[mTT.Resource] ) => {
+                     fetch(
+                       btcWIFKeyLongTermStorage,
+                       List( aliasCnxn ),
+                       ( optRsrc : Option[mTT.Resource] ) => {
                         // Unpack encrypted key from resource
-//                         def handleRsp( v : ConcreteHL.HLExpr ) : Unit = {
-//                           v match {
+                         def handleRsp( v : ConcreteHL.HLExpr ) : Unit = {
+                           v match {
                             // BUGBUG : lgm -- there's a race
-//                             case Bottom => {
-//                               CompletionMapper.complete(key, compact(render(
-//                                 ("msgType" -> "initializeSessionError") ~
-//                                 ("content" -> ("reason" -> "Failed to load BTC WIF key.")) 
-//                               )))
-//                             }
-//                             case PostedExpr( (PostedExpr( encryptedKey : String ), _, _, _) ) => {
+                             case Bottom => {
+                               CompletionMapper.complete(key, compact(render(
+                                 ("msgType" -> "initializeSessionError") ~
+                                 ("content" -> ("reason" -> "Failed to load BTC WIF key.")) 
+                               )))
+                             }
+                             case PostedExpr( (PostedExpr( encryptedKey : String ), _, _, _) ) => {
                               // BUGBUG : lgm -- fix the padding and
                               // uncomment these lines
-                              //val btcWIFKey = decryptWithSaltedPassword(password, hexStringToByteArray(encryptedKey)).map(_.toChar).mkString
-                              //btcKeyMapper.map += ((sessionToken, btcWIFKey))
-                              /* println("onLabelsFetch / fetch btc wifkey: Added " + */ /*(sessionToken,btcWIFKey) + */ /* "to in-memory map") */
-//                             }
-//                           }
-//                         }
-//                         optRsrc match {
-//                           case None => ();
-//                           case Some(mTT.Ground(v)) => {
-//                             handleRsp( v ) 
-//                           }
-//                           case Some(mTT.RBoundHM(Some(mTT.Ground(v)), _)) => {
-//                             handleRsp( v ) 
-//                           }
-//                           case _ => {
-//                             CompletionMapper.complete(key, compact(render(
-//                               ("msgType" -> "initializeSessionError") ~
-//                               ("content" -> ("reason" -> ("Unrecognized resource: optRsrc = " + optRsrc)))
-//                             )))
-//                           }
-//                         }
-//                       }
-//                     )
+                              val btcWIFKey = decryptWithSaltedPassword(password, hexStringToByteArray(encryptedKey)).map(_.toChar).mkString
+                              btcKeyMapper.map += ((sessionToken, btcWIFKey))
+                              println("onLabelsFetch / fetch btc wifkey: Added " + (sessionToken,btcWIFKey) + "to in-memory map")
+                             }
+                           }
+                         }
+                         optRsrc match {
+                           case None => ();
+                           case Some(mTT.Ground(v)) => {
+                             handleRsp( v ) 
+                           }
+                           case Some(mTT.RBoundHM(Some(mTT.Ground(v)), _)) => {
+                             handleRsp( v ) 
+                           }
+                           case _ => {
+                             CompletionMapper.complete(key, compact(render(
+                               ("msgType" -> "initializeSessionError") ~
+                               ("content" -> ("reason" -> ("Unrecognized resource: optRsrc = " + optRsrc)))
+                             )))
+                           }
+                         }
+                       }
+                     )
 
                     val biCnxnListObj = Serializer.deserialize[List[PortableAgentBiCnxn]](biCnxnList)
                     
@@ -1557,9 +1551,6 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
               def handleRsp( optRsrc : Option[mTT.Resource], v : ConcreteHL.HLExpr ) : Unit = {
                 v match {
                   case PostedExpr( (PostedExpr(aliasList: String), _, _, _) ) => {
-                    //agentMgr().fetch(defaultAliasLabel,
-                    //List(capSelfCnxn),
-                    //onDefaultAliasFetch(jsonBlob, aliasList))
                     fetch(defaultAliasLabel, List(capSelfCnxn), onDefaultAliasFetch(jsonBlob, aliasList))
                   }
                   case Bottom => {
@@ -1597,8 +1588,6 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
               def handleRsp( optRsrc : Option[mTT.Resource], v : ConcreteHL.HLExpr ) : Unit = {
                 v match {
                   case PostedExpr( (PostedExpr(jsonBlob: String), _, _, _) ) => {
-                    //val (erql, erspl) = agentMgr().makePolarizedPair()
-                    //agentMgr().fetch( erql, erspl )(aliasListLabel, List(capSelfCnxn), onAliasesFetch(jsonBlob))
                     fetch(aliasListLabel, List(capSelfCnxn), onAliasesFetch(jsonBlob))
                   }
                   case Bottom => {
@@ -1631,8 +1620,6 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
                 }
               }
             }
-            //val (erql, erspl) = agentMgr().makePolarizedPair()
-            //agentMgr().fetch( erql, erspl )(jsonBlobLabel, List(capSelfCnxn), onJSONBlobFetch)
             fetch(jsonBlobLabel, List(capSelfCnxn), onJSONBlobFetch)
             ()
           }
@@ -1655,9 +1642,7 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
           }
         }
       }
-      //val (erql, erspl) = agentMgr().makePolarizedPair()
       //BasicLogService.tweet("secureLogin | login: fetching with eqrl, erspl = " + erql + ", " + erspl)
-      //agentMgr().fetch( erql, erspl )(pwmacLabel, List(capSelfCnxn), onPwmacFetch)
       fetch(pwmacLabel, List(capSelfCnxn), onPwmacFetch)
     }
     
@@ -1689,7 +1674,6 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
         // don't need mac of cap; need to verify email is on our network
         val emailURI = new URI("emailhash://" + cap)
         val emailSelfCnxn = PortableAgentCnxn(emailURI, "emailhash", emailURI)
-        //val (erql, erspl) = agentMgr().makePolarizedPair()
         //BasicLogService.tweet("secureSignup | email branch: erql, erspl = " + erql + ", " + erspl)        
         def handleRsp( optRsrc : Option[mTT.Resource], v : ConcreteHL.HLExpr ) : Unit = {
           v match {
@@ -1775,8 +1759,6 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
     val agentURIStr = sessionURIStr.replaceFirst("agent-session", "agent")
     val agentURI = new URI(agentURIStr)
     val agentIdCnxn = PortableAgentCnxn(agentURI, "identity", agentURI)
-    //val (erql, erspl) = agentMgr().makePolarizedPair()
-    //agentMgr().get(erql, erspl)(
     get(
       jsonBlobLabel,
       List(agentIdCnxn),

@@ -11,7 +11,8 @@ import spray.json._
 import DefaultJsonProtocol._
 
 trait BlockChainAPIT {  
-  val createWalletAPICode = "6ec81336-5934-44a0-92ed-2a19aa379320"
+  //val createWalletAPICode = "6ec81336-5934-44a0-92ed-2a19aa379320"
+  val createWalletAPICode = "8300fec5-6ca5-4134-bedc-bb4f3995c94f"
   val createWalletURIStr : String = "https://blockchain.info/api/v2/create_wallet"
   // ----------------------------------------------------------------------------------------------------------
   // BlockChain URI's
