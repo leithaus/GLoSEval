@@ -84,6 +84,16 @@ trait BlockChainAPIT {
     }
   }
 
+  case class FetchWalletBalanceData( 
+    main_password : String
+  ) extends BlockChainData {
+    override def toString() : String = {            
+      (
+        "main_password" + "=" + main_password
+      )
+    }
+  }
+
   case class CreateWalletResponse(
     guid : String,
     address : String,
@@ -123,6 +133,13 @@ trait BlockChainAPIT {
     guid : String    
   ) extends BlockChainCall[MakeOutgoingPaymentData] {    
     override def url : java.net.URL = new java.net.URL( s"""https://blockchain.info/merchant/${guid}/payment""" )
+  }
+
+  case class FetchWalletBalance( 
+    override val data : FetchWalletBalanceData,
+    guid : String    
+  ) extends BlockChainCall[FetchWalletBalanceData] {    
+    override def url : java.net.URL = new java.net.URL( s"""https://blockchain.info/merchant/${guid}/balance""" )
   }
 }
 

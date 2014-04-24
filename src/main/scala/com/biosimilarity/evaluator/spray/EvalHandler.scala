@@ -174,10 +174,10 @@ trait BTCCryptoUtilities {
     val blocks: Int = size / 16 + (if (size % 16 > 0) 1 else 0)
     val bytes = new Array[Byte](16 * blocks)
     data.copyToArray(bytes)
-    bytes(bytes.size - 4) = (size >>> 24).byteValue
-    bytes(bytes.size - 3) = (size >>> 16).byteValue
-    bytes(bytes.size - 2) = (size >>> 8).byteValue
-    bytes(bytes.size - 1) = size.byteValue
+    bytes(bytes.size - 4) = (data.size >>> 24).byteValue
+    bytes(bytes.size - 3) = (data.size >>> 16).byteValue
+    bytes(bytes.size - 2) = (data.size >>> 8).byteValue
+    bytes(bytes.size - 1) = data.size.byteValue
     
     salt ++ saltedPasswordHelper(password, salt, bytes, Cipher.ENCRYPT_MODE)
   }
@@ -185,15 +185,15 @@ trait BTCCryptoUtilities {
   // The data parameter should be something of the form emitted by encryptWithSaltedPassword
   def decryptWithSaltedPassword(password: String, data: Array[Byte]): Array[Byte] = {
     // Separate salt from encrypted data
-    val salt = data.dropRight(4)
-    val encrypted = data.drop(data.length - 4)
+    val salt = data.dropRight(data.length - 4)
+    val encrypted = data.drop(4)
     
     val padded = saltedPasswordHelper(password, salt, encrypted, Cipher.DECRYPT_MODE)
     val size: Int = 
-      padded(padded.size - 4) << 24 +
-      padded(padded.size - 3) << 16 +
-      padded(padded.size - 2) << 8 + 
-      padded(padded.size - 1)
+      ((padded(padded.size - 4) << 24) +
+       (padded(padded.size - 3) << 16) +
+       (padded(padded.size - 2) << 8) + 
+       padded(padded.size - 1))
     val bytes = new Array[Byte](size)
     padded.copyToArray(bytes, 0, size)
     bytes
@@ -596,14 +596,21 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
     val btcWIFKey = generateWIFKey
     println("doCreateBTCWallet: Generated " + btcWIFKey)
     
-    // BUGBUG : lgm -- fix the padding and uncomment these lines
-    //val encryptedWIFKey = encryptWithSaltedPassword(password, btcWIFKey.getBytes("UTF-8")).map("%02x".format(_)).mkString
+    val encryptedWIFKey = encryptWithSaltedPassword(password, btcWIFKey.getBytes("UTF-8")).map("%02x".format(_)).mkString
 
     post(
       btcWIFKeyLongTermStorage,
       List( aliasCnxn ),
-      "", //encryptedWIFKey,
-      ( optRsrc : Option[mTT.Resource] ) => println( "WIFKey encrypted and stored: " + optRsrc + ", " + "encryptedKey" /*  encryptedWIFKey */ )
+      encryptedWIFKey,
+      ( optRsrc : Option[mTT.Resource] ) =>
+        println(
+          (
+            "WIFKey encrypted and stored: "
+            + optRsrc +
+            ", "
+            + "encryptedKey: " + encryptedWIFKey
+          )
+        )
     )
 
     val cwd = CreateWalletData(
@@ -1349,10 +1356,9 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
                       btcWIFKeyLongTermStorage,
                       List( aliasCnxn ),
                       ( optRsrc : Option[mTT.Resource] ) => {
-                       // Unpack encrypted key from resource
+                        // Unpack encrypted key from resource
                         def handleRsp( v : ConcreteHL.HLExpr ) : Unit = {
                           v match {
-                           // BUGBUG : lgm -- there's a race
                             case Bottom => {
                               CompletionMapper.complete(key, compact(render(
                                 ("msgType" -> "initializeSessionError") ~
@@ -1360,6 +1366,14 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
                               )))
                             }
                             case PostedExpr( (PostedExpr( encryptedKey : String ), _, _, _) ) => {
+                              println(
+                                (
+                                  "onLabelsFetch / fetch btc wifkey: "
+                                  + encryptedKey
+                                  + "\nhexStringToByteArray(encryptedKey): "
+                                  + hexStringToByteArray(encryptedKey)
+                                )
+                              )
                               val btcWIFKey = decryptWithSaltedPassword(password, hexStringToByteArray(encryptedKey)).map(_.toChar).mkString
                               btcKeyMapper.map += ((sessionToken, btcWIFKey))
                               println("onLabelsFetch / fetch btc wifkey: Added " + (sessionToken,btcWIFKey) + "to in-memory map")
