@@ -2407,15 +2407,16 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
                                                 BasicLogService.tweet("createNodeUser | onPost5: optRsrc = " + optRsrc)
                                                 //println("createNodeUser | onPost5: optRsrc = " + optRsrc)
                                                 optRsrc match {
-                                                  case None => ()
-                                                    case Some(x) =>
-                                                      launchNodeUserBehaviors( aliasCnxn )
-                                                  // Store empty bi-cnxn list on alias cnxn
-                                                  post(
-                                                    biCnxnsListLabel,
-                                                    List(aliasCnxn),
-                                                    ""
-                                                  )
+                                                  case None => ();
+                                                  case Some(x) => {
+                                                    launchNodeUserBehaviors( aliasCnxn )
+                                                    // Store empty bi-cnxn list on alias cnxn
+                                                    post(
+                                                      biCnxnsListLabel,
+                                                      List(aliasCnxn),
+                                                      ""
+                                                    )
+                                                  }
                                                 }
                                               }
                                             )
