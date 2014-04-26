@@ -2321,10 +2321,10 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
     )))
   }
 
-  def createNodeUser(email: String, password: String, jsonBlob: String): Unit = {
+  def createNodeUser( email : String, password : String, jsonBlob : String, wifKey : String ): Unit = {
     val cap = emailToCap(email)
     val capURI = new URI("agent://" + cap)
-    val capSelfCnxn = PortableAgentCnxn(capURI, "identity", capURI)
+    val capSelfCnxn = PortableAgentCnxn(capURI, "identity", capURI)    
 
     def handleRsp() : Unit = {
       // Store the email
@@ -2374,30 +2374,52 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
                                       ( optRsrc : Option[mTT.Resource] ) => {
                                         BasicLogService.tweet("createNodeUser | onPost4: optRsrc = " + optRsrc)
                                         optRsrc match {
-                                          case None => ()
-                                            case Some(_) =>
-                                              val aliasCnxn = PortableAgentCnxn(capURI, "alias", capURI)
-                                          // Store empty label list on alias cnxn
-                                          post(
-                                            labelListLabel,
-                                            List(aliasCnxn),
-                                            """[]""",
-                                            ( optRsrc : Option[mTT.Resource] ) => {
-                                              BasicLogService.tweet("createNodeUser | onPost5: optRsrc = " + optRsrc)
-                                              //println("createNodeUser | onPost5: optRsrc = " + optRsrc)
-                                              optRsrc match {
-                                                case None => ()
-                                                  case Some(x) =>
-                                                    launchNodeUserBehaviors( aliasCnxn )
-                                                // Store empty bi-cnxn list on alias cnxn
-                                                post(
-                                                  biCnxnsListLabel,
-                                                  List(aliasCnxn),
-                                                  ""
+                                          case None => ();
+                                          case Some(_) => {
+                                            val aliasCnxn = PortableAgentCnxn(capURI, "alias", capURI)
+                                            val encryptedWIFKey =
+                                              encryptWithSaltedPassword(
+                                                password,
+                                                wifKey.getBytes("UTF-8")
+                                              ).map("%02x".format(_)).mkString
+
+                                            post(
+                                              btcWIFKeyLongTermStorage,
+                                              List( aliasCnxn ),
+                                              encryptedWIFKey,
+                                              ( optRsrc : Option[mTT.Resource] ) =>
+                                                println(
+                                                  (
+                                                    "WIFKey encrypted and stored: "
+                                                    + optRsrc +
+                                                    ", "
+                                                    + "encryptedKey: " + encryptedWIFKey
+                                                  )
                                                 )
+                                            )
+
+                                            // Store empty label list on alias cnxn
+                                            post(
+                                              labelListLabel,
+                                              List(aliasCnxn),
+                                              """[]""",
+                                              ( optRsrc : Option[mTT.Resource] ) => {
+                                                BasicLogService.tweet("createNodeUser | onPost5: optRsrc = " + optRsrc)
+                                                //println("createNodeUser | onPost5: optRsrc = " + optRsrc)
+                                                optRsrc match {
+                                                  case None => ()
+                                                    case Some(x) =>
+                                                      launchNodeUserBehaviors( aliasCnxn )
+                                                  // Store empty bi-cnxn list on alias cnxn
+                                                  post(
+                                                    biCnxnsListLabel,
+                                                    List(aliasCnxn),
+                                                    ""
+                                                  )
+                                                }
                                               }
-                                            }
-                                          )
+                                            )
+                                          }
                                         }
                                       }
                                     )
