@@ -862,7 +862,8 @@ trait AgentCRUDHandler extends AgentCRUDSchema {
       def biCnxnToJObject( biCnxn : PortableAgentBiCnxn ) : JObject = {
         ( "source" -> biCnxn.writeCnxn.src.toString ) ~
         ( "label" -> biCnxn.writeCnxn.label ) ~
-        ( "target" -> biCnxn.writeCnxn.trgt.toString )
+        ( "target" -> biCnxn.writeCnxn.trgt.toString ) ~
+        ( "cnxnType" -> "agent" )
       }
 
       CometActorMapper.cometMessage(sessionURIStr, compact( render(

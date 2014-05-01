@@ -387,11 +387,12 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
       com.biosimilarity.evaluator.msgs.agent.crud.removeAliasConnectionsRequest(
         new URI(sessionURIStr),
         (json \ "content" \ "alias").extract[String],
-        jcnxns.map((c: JValue) => PortableAgentCnxn(
-          new URI((c \ "source").extract[String]),
-          (c \ "label").extract[String],
-          new URI((c \ "target").extract[String])
-        ))
+        // jcnxns.map((c: JValue) => PortableAgentCnxn(
+//           new URI((c \ "source").extract[String]),
+//           (c \ "label").extract[String],
+//           new URI((c \ "target").extract[String])
+//         ))
+        extractPortableAgentCnxns( jcnxns.map( extractCnxn( _ ) ) ).toList
       )
     )
   }
@@ -463,11 +464,12 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
       com.biosimilarity.evaluator.msgs.agent.crud.evalSubscribeCancelRequest(
         new URI(sessionURIStr),
         new SumOfProducts()((json \ "content" \ "filter").extract[String]),
-        jcnxns.map((c: JValue) => PortableAgentCnxn(
-          new URI((c \ "source").extract[String]),
-          (c \ "label").extract[String],
-          new URI((c \ "target").extract[String])
-        ))
+        // jcnxns.map((c: JValue) => PortableAgentCnxn(
+//           new URI((c \ "source").extract[String]),
+//           (c \ "label").extract[String],
+//           new URI((c \ "target").extract[String])
+//         ))
+        extractPortableAgentCnxns( jcnxns.map( extractCnxn( _ ) ) ).toList
       )
     )
   }
@@ -968,7 +970,8 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
              ("connection" ->
                ("source" -> writeCnxn.src.toString) ~
                ("label" -> writeCnxn.label) ~
-               ("target" -> writeCnxn.trgt.toString)
+               ("target" -> writeCnxn.trgt.toString) ~
+               ("cnxnType" -> "agent")
              ) ~
              ("message" -> message.getOrElse("")) ~
              ("introProfile" -> profileData)
@@ -1067,7 +1070,8 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
              ("connection" ->
               ("source" -> writeCnxn.src.toString) ~
               ("label" -> writeCnxn.label) ~
-              ("target" -> writeCnxn.trgt.toString)
+              ("target" -> writeCnxn.trgt.toString) ~
+              ("cnxnType" -> "agent")
             ) ~
              ("introProfile" -> profileData)
            )
@@ -1338,7 +1342,8 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
             def biCnxnToJObject(biCnxn: PortableAgentBiCnxn): JObject = {
               ("source" -> biCnxn.writeCnxn.src.toString) ~
               ("label" -> biCnxn.writeCnxn.label) ~
-              ("target" -> biCnxn.writeCnxn.trgt.toString)
+              ("target" -> biCnxn.writeCnxn.trgt.toString) ~
+              ("cnxnType" -> "agent")
             }              
             def onLabelsFetch(jsonBlob: String, aliasList: String, defaultAlias: String, biCnxnList: String): Option[mTT.Resource] => Unit = (optRsrc) => {
               BasicLogService.tweet("secureLogin | login | onPwmacFetch | onLabelsFetch: optRsrc = " + optRsrc)
@@ -1777,7 +1782,7 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
     secureLogin(identType, identInfo, password, key)
   }
 
-  def extractCnxn(cx: JObject) : com.biosimilarity.lift.model.store.Cnxn[URI,String,URI] = {
+  def extractCnxn(cx: JValue) : com.biosimilarity.lift.model.store.Cnxn[URI,String,URI] = {
     try {
       val cxType = ( cx \ "cnxnType" ).extract[String] 
       cxType match {
@@ -2085,7 +2090,8 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
                     ("connection" -> (
                       ("source" -> agentCnxn.src.toString) ~
                       ("label" -> agentCnxn.label) ~
-                      ("target" -> agentCnxn.trgt.toString)
+                      ("target" -> agentCnxn.trgt.toString) ~
+                      ("cnxnType" -> "agent")
                     )) ~
                     ("filter" -> jsonFilter)
                   val response = ("msgType" -> "evalSubscribeResponse") ~ ("content" -> content)
@@ -2139,7 +2145,8 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
                   ("connection" -> (
                     ("source" -> agentCnxn.src.toString) ~
                     ("label" -> agentCnxn.label) ~
-                    ("target" -> agentCnxn.trgt.toString)
+                    ("target" -> agentCnxn.trgt.toString) ~
+                    ("cnxnType" -> "agent")
                   )) ~
                   ("filter" -> jsonFilter)
                 val response = ("msgType" -> "evalSubscribeResponse") ~ ("content" -> content)
@@ -2220,7 +2227,8 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
                   ("connection" -> (
                     ("source" -> agentCnxn.src.toString) ~
                     ("label" -> agentCnxn.label) ~
-                    ("target" -> agentCnxn.trgt.toString)
+                    ("target" -> agentCnxn.trgt.toString) ~
+                    ("cnxnType" -> "agent")
                   )) ~
                   ("filter" -> jsonFilter)
                   val response = ("msgType" -> "evalSubscribeResponse") ~ ("content" -> content)
@@ -2575,6 +2583,7 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
     val sessionId = (json \ "content" \ "sessionURI").extract[String]
     val correlationId = (json \ "content" \ "correlationId").extract[String]
     val jvVerifier = json \ "content" \ "verifier"
+    // BUGBUG : lgm -- should these two use extractCnxn?
     val pacVerifier = PortableAgentCnxn(
       new URI((jvVerifier \ "source").extract[String]),
       (jvVerifier \ "label").extract[String],
