@@ -50,8 +50,10 @@ package usage {
      with DSLCommLinkConfiguration
      with AccordionConfiguration
      with DownStreamHttpCommsT
+     with EvaluationServiceProxy
      with Serializable
   {
     import com.protegra_ati.agentservices.store.extensions.StringExtensions._
+    override def evaluationService = this
   }
 }

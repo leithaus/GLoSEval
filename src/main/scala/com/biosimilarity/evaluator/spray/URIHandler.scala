@@ -51,8 +51,8 @@ import java.util.UUID
 import java.net.URI
 import java.net.URL
 
-trait URIHandler {
-  self : EvaluationCommsService with DownStreamHttpCommsT with QryToURIT =>
+trait URIHandler extends URIHandlerT {
+  self : DownStreamHttpCommsT with QryToURIT with CnxnString[String,String,String] =>
   import DSLCommLink.mTT
   import ConcreteHL._
   
@@ -107,7 +107,8 @@ trait URIHandler {
     label : CnxnCtxtLabel[String,String,String],
     onPost : Option[mTT.Resource] => Unit = {
       ( optRsrc : Option[mTT.Resource] ) => BasicLogService.tweet( "post response: " + optRsrc )
-    }
+    },
+    dslEvaluator : EvaluationCommsService = EvalHandlerService
   ) : Unit = {
     for( response <- futures ) {
       response onComplete{
@@ -126,7 +127,7 @@ trait URIHandler {
               + "\n*********************************************************************************"
             )
           )
-          put( label, List( cnxn ), rspData, onPost )
+          dslEvaluator.put( label, List( cnxn ), rspData, onPost )
         }
       }
     }
@@ -139,15 +140,20 @@ trait URIHandler {
     label : CnxnCtxtLabel[String,String,String],
     onPost : Option[mTT.Resource] => Unit = {
       ( optRsrc : Option[mTT.Resource] ) => BasicLogService.tweet( "post response: " + optRsrc )
-    }
+    },
+    dslEvaluator : EvaluationCommsService = EvalHandlerService
   ) {    
-    resolveFutures( mkFutures( qryCnxn, filter ), rspCnxn, label, onPost )
+    resolveFutures(
+      mkFutures( qryCnxn, filter ),
+      rspCnxn, label, onPost,
+      dslEvaluator
+    )
   }
 
   // BUGBUG : lgm -- none of the write methods are implemented and
   // most of the read methods are all the same
 
-  def post[Value](
+  override def post[Value](
     filter : CnxnCtxtLabel[String,String,String],
     cnxns : Seq[URICnxn],
     content : Value,
@@ -157,7 +163,7 @@ trait URIHandler {
     throw new Exception( "Not yet implemented" )
   }
 
-  def postV[Value](
+  override def postV[Value](
     filter : CnxnCtxtLabel[String,String,String],
     cnxns : Seq[URICnxn],
     content : Value,
@@ -167,7 +173,7 @@ trait URIHandler {
     throw new Exception( "Not yet implemented" )    
   }
 
-  def put[Value](
+  override def put[Value](
     filter : CnxnCtxtLabel[String,String,String],
     cnxns : Seq[URICnxn],
     content : Value,
@@ -177,7 +183,7 @@ trait URIHandler {
     throw new Exception( "Not yet implemented" )        
   }
 
-  def read(
+  override def read(
     filter : CnxnCtxtLabel[String,String,String],
     cnxns : Seq[URICnxn],
     onReadRslt : Option[Rsrc] => Unit =
@@ -198,7 +204,7 @@ trait URIHandler {
     }
   }
 
-  def fetch(
+  override def fetch(
     filter : CnxnCtxtLabel[String,String,String],
     cnxns : Seq[URICnxn],
     onFetchRslt : Option[Rsrc] => Unit =
@@ -218,7 +224,7 @@ trait URIHandler {
     }    
   }
 
-  def feed(
+  override def feed(
     filter : CnxnCtxtLabel[String,String,String],
     cnxns : Seq[URICnxn],
     onFeedRslt : Option[Rsrc] => Unit =
@@ -238,7 +244,7 @@ trait URIHandler {
     }    
   }
 
-  def get(
+  override def get(
     filter : CnxnCtxtLabel[String,String,String],
     cnxns : Seq[URICnxn],
     onGetRslt : Option[Rsrc] => Unit =
@@ -258,10 +264,10 @@ trait URIHandler {
     }    
   }
 
-  def score(
+  override def score(
     filter : CnxnCtxtLabel[String,String,String],
     cnxns : Seq[URICnxn],
-    staff : Either[Seq[URICnxn],Seq[Label]],
+    staff : Either[Seq[Cnxn],Seq[Label]],
     onScoreRslt : Option[Rsrc] => Unit =
       ( optRsrc : Option[Rsrc] ) => { BasicLogService.tweet( "got response: " + optRsrc ) }
   ) : Unit = {
@@ -279,7 +285,7 @@ trait URIHandler {
     }    
   }
 
-  def cancel(
+  override def cancel(
     filter : CnxnCtxtLabel[String,String,String],
     connections : Seq[URICnxn],
     onCancel : Option[Rsrc] => Unit =

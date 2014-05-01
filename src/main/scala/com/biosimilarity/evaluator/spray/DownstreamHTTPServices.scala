@@ -36,7 +36,7 @@ import java.net.URL
 
 trait DownStreamHttpCommsT
 {
-  self : EvaluationCommsService => 
+  self : /* EvaluationCommsService */ EvaluationServiceProxy => 
   import DSLCommLink.mTT
   import ConcreteHL._  
   import BlockChainAPI._
@@ -84,7 +84,10 @@ trait DownStreamHttpCommsT
             + "\n*********************************************************************************"
           )
         )
-        put( rspLabel, List( rspCnxn ), blockChainData, onPost )
+        evaluationService.put(
+          rspLabel, List( rspCnxn ), blockChainData,
+          onPost.asInstanceOf[Option[com.biosimilarity.evaluator.distribution.EvaluationService#Rsrc] => Unit]
+        )
       }
     }
   }

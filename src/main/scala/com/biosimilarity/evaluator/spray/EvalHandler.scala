@@ -1777,11 +1777,53 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
     secureLogin(identType, identInfo, password, key)
   }
 
-  def extractCnxn(cx: JObject) = new PortableAgentCnxn(
-    new URI((cx \ "source").extract[String]),
-    (cx \ "label").extract[String],
-    new URI((cx \ "target").extract[String])
-  )
+  def extractCnxn(cx: JObject) : com.biosimilarity.lift.model.store.Cnxn[URI,String,URI] = {
+    try {
+      val cxType = ( cx \ "cnxnType" ).extract[String] 
+      cxType match {
+        case "uri" => {
+          new URICnxn(
+            new URI((cx \ "root").extract[String]),
+            (cx \ "path").extract[String]
+          )
+        }
+        case _ => {
+          new PortableAgentCnxn(
+            new URI((cx \ "source").extract[String]),
+            (cx \ "label").extract[String],
+            new URI((cx \ "target").extract[String])
+          )
+        }      
+      }
+    }
+    catch {
+      case e : Throwable => {
+        println( "warning: no cnxn type supplied: " + e )
+        new PortableAgentCnxn(
+          new URI((cx \ "source").extract[String]),
+          (cx \ "label").extract[String],
+          new URI((cx \ "target").extract[String])
+        )
+      }
+    }
+  }
+
+  def extractPortableAgentCnxns(
+    cnxnColl : Seq[com.biosimilarity.lift.model.store.Cnxn[URI,String,URI]]
+  ) : Seq[PortableAgentCnxn] = {
+    cnxnColl.map(
+      ( c : com.biosimilarity.lift.model.store.Cnxn[URI,String,URI] ) => {
+        c match {
+          case pac : PortableAgentCnxn => {
+            pac
+          }
+          case uirc@URICnxn( _, _ ) => {
+            throw new Exception( "not yet implemented" )
+          }
+        }
+      }
+    )
+  }
 
   def updateUserRequest(json: JValue): Unit = {
     val content = (json \ "content").asInstanceOf[JObject]
@@ -1898,7 +1940,7 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
   }
 
   def extractFiltersAndCnxns(exprContent: JObject): 
-      Option[(Set[CnxnCtxtLabel[String, String, String] with Factual], List[PortableAgentCnxn])] = {
+      Option[(Set[CnxnCtxtLabel[String, String, String] with Factual], List[com.biosimilarity.lift.model.store.Cnxn[URI,String,URI]])] = {
     BasicLogService.tweet("Extracting from " + compact(render(exprContent)))
     try {
       val labelSet = new SumOfProducts()((exprContent \ "label").extract[String])
@@ -1972,7 +2014,7 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
     import com.protegra_ati.agentservices.store._
     import com.biosimilarity.evaluator.prolog.PrologDSL._
     
-    object act extends AgentCnxnTypes {}
+    object act extends AgentCnxnTypes {}    
 
     BasicLogService.tweet("evalSubscribeRequest: json = " + compact(render(json)));
     val content = (json \ "content").asInstanceOf[JObject]
@@ -1992,7 +2034,7 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
       exprType match {
         case "feedExpr" => {
           BasicLogService.tweet("evalSubscribeRequest | feedExpr")
-          val onFeed: Option[mTT.Resource] => Unit = (optRsrc) => {            
+          val onFeed: Option[mTT.Resource] => Unit = (optRsrc) => {
             BasicLogService.tweet("evalSubscribeRequest | onFeed: rsrc = " + optRsrc)
             //println("evalSubscribeRequest | onFeed: optRsrc = " + optRsrc)
 
@@ -2146,12 +2188,16 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
             BasicLogService.tweet("evalSubscribeRequest | feedExpr: filter = " + filter)
             feed(
               'user('p1(filter), 'p2(uid), 'p3('new("_")), 'p4('nil("_"))), 
-              cnxns.map((c) => PortableAgentCnxn(c.trgt, c.label, c.src)), 
+              //cnxns.map((c) => PortableAgentCnxn(c.trgt, c.label, c.src)), 
+              //extractPortableAgentCnxns( cnxns ), 
+              cnxns,
               onFeed
             )
             read(
               'user('p1(filter), 'p2(uid), 'p3('old("_")), 'p4('nil("_"))), 
-              cnxns.map((c) => PortableAgentCnxn(c.trgt, c.label, c.src)), 
+              //cnxns.map((c) => PortableAgentCnxn(c.trgt, c.label, c.src)), 
+              //extractPortableAgentCnxns( cnxns ), 
+              cnxns,
               onRead
             )
           }
@@ -2202,7 +2248,12 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
               // Either[Seq[PortableAgentCnxn],Seq[CnxnCtxtLabel[String,String,String]]]
               which match {
                 case "a" => vals match {
-                  case JArray(arr: List[JObject]) => Left(arr.map(extractCnxn _))
+                  case JArray(arr: List[JObject]) => {
+                    //val cnxnColl : Seq[PortableAgentCnxn] =
+                      //extractPortableAgentCnxns( arr.map(extractCnxn _) )
+                    //Left( cnxnColl )
+                    Left( arr.map(extractCnxn _) )
+                  }
                 }
                 case "b" => Right(
                   vals.extract[List[String]].map((t: String) => 
@@ -2224,7 +2275,9 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
             //agentMgr().score(
             score(
               'user('p1(filter), 'p2(uid), 'p3('new("_")), 'p4('nil("_"))), 
-              cnxns.map((c) => PortableAgentCnxn(c.trgt, c.label, c.src)), 
+              //cnxns.map((c) => PortableAgentCnxn(c.trgt, c.label, c.src)), 
+              //extractPortableAgentCnxns( cnxns ), 
+              cnxns,
               staff, 
               onScore
             )
@@ -2244,6 +2297,8 @@ trait EvalHandler extends CapUtilities with BTCCryptoUtilities {
             //agentMgr().post(
             post(
               'user('p1(filter), 'p2(uid), 'p3('new("_")), 'p4('nil("_"))),
+              //cnxns.map((c) => PortableAgentCnxn(c.trgt, c.label, c.src)),
+              //extractPortableAgentCnxns( cnxns ),
               cnxns,
               "[" + value + ", " + compact(render(JString(toTermString(filter)))) + "]",
               (optRsrc: Option[mTT.Resource]) => {

@@ -45,6 +45,20 @@ import java.util.UUID
 
 import java.net.URI
 
+object URIHandlerService
+extends URIHandler
+with QryToURIT
+with DownStreamHttpCommsT
+//with EvaluationCommsService
+//with EvalConfig
+//with DSLCommLinkConfiguration
+//with AccordionConfiguration
+with EvaluationServiceProxy
+with CnxnString[String,String,String]
+with Serializable {
+  override def evaluationService = EvalHandlerService
+}
+
 object EvalHandlerService
 extends EvalHandler
 with EvaluationCommsService
@@ -52,9 +66,12 @@ with EvalConfig
 with DSLCommLinkConfiguration
 with AccordionConfiguration
 with DownStreamHttpCommsT
+with EvaluationServiceProxy
 with QryToURIT
 with BTCHandler
 with Serializable {
+  override def uriHandler() : URIHandlerT = URIHandlerService
+  override def evaluationService = this
 }
 
 object EvalAndAgentCRUDHandlerService
@@ -65,9 +82,12 @@ with EvalConfig
 with DSLCommLinkConfiguration
 with AccordionConfiguration
 with DownStreamHttpCommsT
+with EvaluationServiceProxy
 with QryToURIT
 with BTCHandler
 with Serializable {
+  override def uriHandler() : URIHandlerT = URIHandlerService
+  override def evaluationService = this
 }
 
 package usage {
