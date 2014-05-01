@@ -52,6 +52,7 @@ with EvalConfig
 with DSLCommLinkConfiguration
 with AccordionConfiguration
 with DownStreamHttpCommsT
+with QryToURIT
 with BTCHandler
 with Serializable {
 }
@@ -64,6 +65,7 @@ with EvalConfig
 with DSLCommLinkConfiguration
 with AccordionConfiguration
 with DownStreamHttpCommsT
+with QryToURIT
 with BTCHandler
 with Serializable {
 }
