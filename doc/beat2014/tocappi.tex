@@ -84,6 +84,7 @@
 \newcommand{\boundnames}[1]{\mathbin{\bold{BN}(#1)}}
 %\newcommand{\lift}[2]{\texttt{lift} \; #1 \concat #2}
 \newcommand{\binpar}[2]{#1 \juxtap #2}
+\newcommand{\binselect}[2]{#1 \altern #2}
 \newcommand{\outputp}[2]{#1 ! ( * #2 )}
 \newcommand{\prefix}[3]{#1 ? ( #2 ) \concat #3}
 \newcommand{\lift}[2]{#1 ! ( #2 )}
@@ -480,37 +481,28 @@ and retrieving state.
 
 
 
+\begin{lstlisting}[mathescape]
+def $Cell( slot, state ) \Rightarrow$ {
+  new $( v )$ {
+    $v!( state )$
+    $slot ? get( ret ) \Rightarrow$ { $\binpar{v?( s ) \Rightarrow ret!( s )}{Cell( slot, s )}$ } + $slot ? set( s ) \Rightarrow$ { $Cell( slot, s )$ }
+  }
+}
+\end{lstlisting}
+
 % \begin{lstlisting}[mathescape]
 % def $Cell( slot, state ) \Rightarrow$ {
 %   new $( v )$ {
-%     $v!( state )$
-%     match {
-%       $slot ? get( ret ) \Rightarrow$ { 
-%         $v?( s ) \Rightarrow ret!( s )$
-%         $Cell( slot, s )$
-%       }
-%       $slot ? set( s ) \Rightarrow$ {
-%         $Cell( slot, s )$
-%       }
+%     $v!( state )$ | match { $slot ? get( ret ) \Rightarrow$ { $v?( s ) \Rightarrow ret!( s )$ | $Cell( slot, s )$ } $slot ? set( s ) \Rightarrow$ { $Cell( slot, s )$ }
 %     }
 %   }
 % }
 % \end{lstlisting}
 
-\begin{lstlisting}[mathescape]
-def $Cell( slot, state ) \Rightarrow$ {
-  new $( v )$ {
-    $v!( state )$
-    match {
-      $slot ? get( ret ) \Rightarrow$ {
-        $v?( s ) \Rightarrow ret!( s )$
-        $Cell( slot, s )$
-      }
-      $slot ? set( s ) \Rightarrow$ { $Cell( slot, s )$ }
-    }
-  }
-}
-\end{lstlisting}
+% \begin{mathpar}
+%   \mprset{flushleft}
+%   \inferrule* {} {\texttt{def}\; Cell( slot, state ) \Rightarrow \{ \\ \;\;\texttt{new} ( v ) \{ \binpar{v!( state )}{\binselect{ slot ? get( ret ) \Rightarrow \{ v?( s ) \Rightarrow \binpar{ret!( s )}{Cell( slot, s )} \}}{ slot ? set( s ) \Rightarrow { Cell( slot, s ) }} } \}\} \\ \}}
+% \end{mathpar}
 
 % \begin{lstlisting}[mathescape]
 % def $Cell( slot, state ) \Rightarrow$ {
@@ -547,21 +539,33 @@ composition of cells comprising its state.
 
 The second gadget is an immutable map:
 
+% \begin{lstlisting}[mathescape]
+% def $Map( chan, key_1, state_1, \ldots , key_n, state_n ) \Rightarrow$ {
+%   new $( v_1, \ldots v_n)$ {
+%     $v_1!( state_1 )$
+%     $\ldots$
+%     $v_n!( state_n )$
+%     $chan ? get( key_1, ret ) \Rightarrow$ { 
+%       $v_1?( x ) \Rightarrow ret!( x )$
+%       $Map( chan, key_1, state_1, \ldots , key_n, state_n )$
+%     }
+%     $\ldots$
+%     $chan ? get( key_n, ret ) \Rightarrow$ { 
+%       $v_n?( x ) \Rightarrow ret!( x )$
+%       $Map( chan, key_1, state_1, \ldots , key_n, state_n )$
+%     }
+%   }
+% }
+% \end{lstlisting}
 \begin{lstlisting}[mathescape]
-def $Map( chan, key_1, state_1, \ldots , key_n, state_n ) \Rightarrow$ {
+  def $Map( chan, key_1, state_1, \ldots , key_n, state_n ) \Rightarrow$ {
   new $( v_1, \ldots v_n)$ {
-    $v_1!( state_1 )$
+    $v_1!( state_1 )$ | $\ldots$ | $v_n!( state_n )$
+    $chan ? get( key_1, ret ) \Rightarrow$ { $v_1?( x ) \Rightarrow
+ret!( x )$ | $Map( chan, key_1, state_1, \ldots , key_n, state_n )$ }
     $\ldots$
-    $v_n!( state_n )$
-    $chan ? get( key_1, ret ) \Rightarrow$ { 
-      $v_1?( x ) \Rightarrow ret!( x )$
-      $Map( chan, key_1, state_1, \ldots , key_n, state_n )$
-    }
-    $\ldots$
-    $chan ? get( key_n, ret ) \Rightarrow$ { 
-      $v_n?( x ) \Rightarrow ret!( x )$
-      $Map( chan, key_1, state_1, \ldots , key_n, state_n )$
-    }
+    $chan ? get( key_n, ret ) \Rightarrow$ { $v_n?( x ) \Rightarrow
+ret!( x )$ | $Map( chan, key_1, state_1, \ldots , key_n, state_n )$ }
   }
 }
 \end{lstlisting}
@@ -611,14 +615,8 @@ The examples from the previous section use mild (and entirely
 standard) syntactic sugar: \texttt{def} making recursive definitions a
 little more convenient than their higher-order encodings, \texttt{new}
 making fresh channel allocation a little more convenient and
-\texttt{match} for purely input-guarded choice. Additionally, the
-examples use $\{\}$-enclosed blocks together with line breaks, rather
-than $\binpar{}{}$ for parallel composition. Thus the expression $v!(
-state )$ is actually a thread running in parallel with the
-\texttt{match} expression in the $Cell$ definition. The interested
-reader is directed to the appendix for more details.
-
-\subsection{Free and bound names}
+\texttt{match} for purely input-guarded choice. The interested
+reader is directed to \cite{Longform} for more details.
 
 The syntax has been chosen so that a binding occurrence of a name is
 sandwiched between round braces, ${(} \cdot {)}$. Thus, the
@@ -634,13 +632,11 @@ $\freenames{P}$ is given recursively by
   \and
   \inferrule* {} {\freenames{\binpar{P}{Q}} \defneqls \freenames{P} \cup \freenames{Q}}
   \and
-  \inferrule* {} {\freenames{{*}{x}} x\defneqls \{ x \}}
+  \inferrule* {} {\freenames{{*}{x}} \defneqls \{ x \}}
 \end{mathpar} 
 
 An occurrence of $x$ in a process $P$ is \textit{bound} if it is not
 free. 
-
-\subsection{Structural congruence}
 
 The {\em structural congruence} of processes, noted $\scong$, is the
 least congruence containing $\alpha$-equivalence, $\alphaeq$, that
@@ -659,8 +655,6 @@ satisfies the following laws:
 $\nameeq$, pronounced name-equivalence, recursively related to
 $\alpha$-equivalence and structural equivalence, to judge when two
 names are equivalent, when deciding synchronization and substitution.
-
-\subsection{Semantic substitution}
 
 The engine of computation in this calculus is the interaction between
 synchronization and a form of substitution, called semantic
@@ -682,7 +676,6 @@ see \cite{DBLP:journals/entcs/MeredithR05}
 Finally equipped with these standard features we can present the
 dynamics of the calculus.
 
-\subsection{Operational Semantics}
 The reduction rules for {\rhoc}  are
 \begin{mathpar}
   \inferrule* [lab=Comm] { {x}_{0} \nameeq {x}_{1}, |\vec{y}| = |\vec{Q}| } {{{ x_{0}{?}{(}{\vec{y}}{)} \concat {P}}\juxtap {x_{1}}{!}{(}{\vec{Q}}{)}}
@@ -768,38 +761,18 @@ to be transformed into continuation-passing style as part of the
 interpretation in {\rhoc}.  The asynchronous {\tt Q} library used in
 the definition of the \texttt{deposit} method, on the other hand, is
 unneeded because {\rhoc} is inherently asynchronous.
-% \begin{eqnarray*}
-%  \meaningof{\texttt{var}\; x; P}( x, k ) & \defneqls & \binpar{Cell( x, \texttt{undefined} )}{\meaningof{P}( x, k )} \\
-%  \meaningof{\texttt{var}\; x = v; P}( x, k ) & \defneqls & \texttt{new}(k_1)\{ \binpar{Cell( x, \meaningof{ v }(x, k_1 ) )}{k_1?() \Rightarrow \meaningof{P}( x, k )}\} \\
-%  \meaningof{ P ; Q }( x, k ) & \defneqls & \texttt{new}(k_1)\{ \binpar{\meaningof{ P }( x, k_1 )}{ k_1?() => \meaningof{ Q }( x, k )} \} \\
-%  \meaningof{ \texttt{i} +\!= \texttt{a} ; P }( x, k ) & \defneqls & \texttt{new} \{ \binpar{\binpar{\texttt{i} ! get( r )}{r?( v ) \Rightarrow \texttt{i}! set( v + \texttt{a} ) }}{\meaningof{P}( x, k )} \}\\
-%  \meaningof{\texttt{def}(\{key_1: state_1, \ldots, key_n: state_n\})}(x, k) & \defneqls & \binpar{ Map(x, key_1, state_1, \ldots, key_n, state_n)}{k!()} \\
-% \end{eqnarray*}
-\begin{equation*}
-  \begin{aligned}
-    & \meaningof{\texttt{var}\; x; P}( x, k ) \defneqls \binpar{Cell( x, \texttt{undefined} )}{\meaningof{P}( x, k )} \\
-    & \meaningof{\texttt{var}\; x = v; P}( x, k ) \defneqls \\
-    & \;\;\;\;\;\texttt{new}(k_1)\{ \binpar{Cell( x, \meaningof{ v }(x, k_1 ) )}{k_1?() \Rightarrow \meaningof{P}( x, k )}\} \\
-    & \meaningof{ P ; Q }( x, k ) \defneqls \texttt{new}(k_1)\{ \binpar{\meaningof{ P }( x, k_1 )}{ k_1?() => \meaningof{ Q }( x, k )} \} \\
-    & \meaningof{ \texttt{i} +\!= \texttt{a} ; P }( x, k ) \defneqls \\
-    & \;\;\;\;\;\texttt{new}(k_1) \{ \\
-    & \;\;\;\;\;\;\;\;\texttt{i} ! get( r ) \\
-    & \;\;\;\;\;\;\;\;{r?( v ) \Rightarrow \texttt{\{} \binpar{\texttt{i}! set( v + \meaningof{\texttt{a}}( x, k ) )}{k_1!()} \texttt{\}} } \\
-    & \;\;\;\;\;\;\;\;{\meaningof{P}( x, k_1 )} \\
-    & \;\;\;\;\; \} \\
-    & \meaningof{\texttt{def}(\{key_1: state_1, \ldots, key_n: state_n\})}(x, k) \defneqls \\
-    & \;\;\;\;\;\binpar{ Map(x, key_1, state_1, \ldots, key_n, state_n)}{k!()} \\
-  \end{aligned}
-\end{equation*}
-%\begin{equation*}
-%  \begin{align}
-%    & \meaningof{\texttt{var}\; x; P}( x, k ) \defneqls \binpar{Cell( x, \texttt{undefined} )}{\meaningof{P}( x, k )} \\
-%     & \meaningof{\texttt{var}\; x = v; P}( x, k ) \defneqls \texttt{new}(k_1)\{ \binpar{Cell( x, \meaningof{ v }(x, k_1 ) )}{k_1?() \Rightarrow \meaningof{P}( x, k )}\} \\
-%     & \meaningof{ P ; Q }( x, k ) \defneqls \texttt{new}(k_1)\{ \binpar{\meaningof{ P }( x, k_1 )}{ k_1?() => \meaningof{ Q }( x, k )} \} \\
-%     & \meaningof{ \texttt{i} +\!= \texttt{a} ; P }( x, k ) \defneqls \texttt{new} \{ \binpar{\binpar{\texttt{i} ! get( r )}{r?( v ) \Rightarrow \texttt{i}! set( v + \texttt{a} ) }}{\meaningof{P}( x, k )} \}\\
-%     & \meaningof{\texttt{def}(\{key_1: state_1, \ldots, key_n: state_n\})}(x, k) \defneqls \binpar{ Map(x, key_1, state_1, \ldots, key_n, state_n)}{k!()} \\
-%  \end{align}
-%\end{equation*}
+
+\begin{mathpar}
+%   \inferrule* {} {\meaningof{\texttt{var}\; x; P}( x, k ) \defneqls \binpar{Cell( x, \texttt{undefined} )}{\meaningof{P}( x, k )}}
+%   \and  
+  \inferrule* {} {\meaningof{\texttt{var}\; x = v; P}( x, k ) \defneqls \texttt{new}(k_1)\{ \binpar{Cell( x, \meaningof{ v }(x, k_1 ) )}{k_1?() \Rightarrow \meaningof{P}( x, k )}\}}
+  \and  
+  \inferrule* {} {\meaningof{ P ; Q }( x, k ) \defneqls \texttt{new}(k_1)\{ \binpar{\meaningof{ P }( x, k_1 )}{ k_1?() => \meaningof{ Q }( x, k )} \}}
+  \and  
+  \inferrule* {} {\meaningof{ \texttt{i} +\!= \texttt{a} ; P }( x, k ) \defneqls \texttt{new}(k_1) \{ \binpar{\texttt{i} ! get( r )}{\binpar{ {r?( v ) \Rightarrow \texttt{\{} \binpar{\texttt{i}! set( v + \meaningof{\texttt{a}}( x, k ) )}{k_1!()} \texttt{\}} }}{\meaningof{P}( x, k_1 )}} \} }
+  \and
+  \inferrule* {} {\meaningof{\texttt{def}(\{key_1: state_1, \ldots, key_n: state_n\})}(x, k) \defneqls \binpar{ Map(x, key_1, state_1, \ldots, key_n, state_n)}{k!()} }
+\end{mathpar}
 
 We do not give an explicit translation of {\tt WeakMap} because it is quite
 large, but it is essentially the same as $Map$ plus some machinery for performing
@@ -1002,47 +975,30 @@ The meaning of formulae is given in terms of two mutually recursive functions,
 \noindent taking a formula of the appropriate type and a valuation, and
 returning a set of processes or a set of names, respectively.
 
-% \begin{eqnarray}
-%   \pmeaningof{\ptrue}(v) & = & \Proc \nonumber \\ 
-%   \pmeaningof{\pzero}(v) & = & \{ P : P \scong \pzero \} \nonumber \\ 
-%   \pmeaningof{\neg \phi}(v) & = & \Proc / \pmeaningof{\phi}(v) \nonumber\\
-%   \pmeaningof{\phi \& \psi}(v) & = & \pmeaningof{\phi}(v) \cap \pmeaningof{\psi}(v) \nonumber\\
-%   \pmeaningof{\binpar{\phi}{\psi}}(v) & = &
-%   \{ P : \exists P_0, P_1.P \scong \binpar{P_0}{P_1}, \; P_0 \in \pmeaningof{\phi}(v), \;  P_1 \in \pmeaningof{\psi}(v) \} \nonumber\\
-%   \pmeaningof{\pdropf{b}}(v) & = & \{ P : \exists x.P \scong {\dropn{x}}, \; x \in \nmeaningof{b}(v) \} \nonumber\\	
-%   \pmeaningof{\plift{a}{\phi}}(v) & = & \{ P : \exists P'.P \scong {\lift{x}{P'}},
-%                                            \; x \in \nmeaningof{a}(v), 
-%                                            \; P' \in \pmeaningof{\phi}(v) \} \nonumber\\
-%   \pmeaningof{\pprefix{a}{b}{\phi}}(v) & = & \{ P : \exists P'.P \scong {\prefix{x}{y}{P'}}, x \in \nmeaningof{a}(v), \nonumber\\
-%                                    &   &            \; \; \; \forall c . \exists z . {P'}\substn{z}{y} \in \pmeaningof{{\phi}\substn{c}{b}}(v) \} \nonumber\\
-%   \pmeaningof{\pgfp{X}{\phi}}(v) & = & \cup \{ \mathcal{S} \subseteq \Proc : \mathcal{S} \subseteq \pmeaningof{\phi}(v\substn{\mathcal{S}}{X})\} \nonumber\\
-%   \pmeaningof{\pquant{n}{\psi}{\phi}}(v) & = & \cap_{x \in \nmeaningof{\quotep{\psi}}(v)} \pmeaningof{{\phi}\substn{x}{n}}(v) \nonumber\\
-%   \nmeaningof{\pquotep{\phi}}(v) & = & \{ x : x \nameeq \quotep{P}, P \in \pmeaningof{\phi}(v) \} \nonumber\\
-%   \nmeaningof{\pquotep{P}}(v) & = & \{ x : x \nameeq  \quotep{P} \} \nonumber
-% \end{eqnarray}
-
-\begin{equation*}
-  \begin{aligned}
-  & \pmeaningof{\ptrue}(v) \defneqls \Proc \\ 
-  & \pmeaningof{\pzero}(v) \defneqls \{ P : P \scong \pzero \}  \\ 
-  & \pmeaningof{\neg \phi}(v) \defneqls \Proc / \pmeaningof{\phi}(v) \\
-  & \pmeaningof{\phi \& \psi}(v) \defneqls \pmeaningof{\phi}(v) \cap \pmeaningof{\psi}(v) \\
-  & \pmeaningof{\binpar{\phi}{\psi}}(v) \defneqls \\
-  & \;\;\;\;\;\{ P : \exists P_0, P_1.P \scong \binpar{P_0}{P_1}, \; P_0 \in \pmeaningof{\phi}(v), \;  P_1 \in \pmeaningof{\psi}(v) \} \\
-  & \pmeaningof{\pdropf{b}}(v) \defneqls \{ P : \exists x.P \scong {\dropn{x}}, \; x \in \nmeaningof{b}(v) \} \\	
-  & \pmeaningof{\plift{a}{\phi}}(v) \\
-  & \defneqls \{ P : \exists P'.P \scong {\lift{x}{P'}},
-                                           \; x \in \nmeaningof{a}(v), 
-                                           \; P' \in \pmeaningof{\phi}(v) \} \\
-  & \pmeaningof{\pprefix{a}{b}{\phi}}(v) \defneqls \\
-  & \;\;\;\;\;\{ P : \exists P'.P \scong {\prefix{x}{y}{P'}}, x \in \nmeaningof{a}(v), \\
-  & \;\;\;\;\;\; \; \; \forall c . \exists z . {P'}\substn{z}{y} \in \pmeaningof{{\phi}\substn{c}{b}}(v) \} \\
-  & \pmeaningof{\pgfp{X}{\phi}}(v) \defneqls \cup \{ \mathcal{S} \subseteq \Proc : \mathcal{S} \subseteq \pmeaningof{\phi}(v\substn{\mathcal{S}}{X})\} \\
-  & \pmeaningof{\pquant{n}{\psi}{\phi}}(v) \defneqls \cap_{x \in \nmeaningof{\quotep{\psi}}(v)} \pmeaningof{{\phi}\substn{x}{n}}(v) \\
-  & \nmeaningof{\pquotep{\phi}}(v) \defneqls \{ x : x \nameeq \quotep{P}, P \in \pmeaningof{\phi}(v) \} \\
-  & \nmeaningof{\pquotep{P}}(v) \defneqls \{ x : x \nameeq  \quotep{P} \} \\
-  \end{aligned}
-\end{equation*}
+\begin{mathpar}
+  \inferrule* {} {\pmeaningof{\ptrue}(v) \defneqls \Proc}
+  \and
+  \inferrule* {} {\pmeaningof{\neg \phi}(v) \defneqls \Proc / \pmeaningof{\phi}(v)}
+  \and
+  \inferrule* {} {\pmeaningof{\phi \& \psi}(v) \defneqls \pmeaningof{\phi}(v) \cap \pmeaningof{\psi}(v)}
+  \and
+  \inferrule* {} {\pmeaningof{\pzero}(v) \defneqls \{ P : P \scong \pzero \}}
+  \and
+  \inferrule* {} {\pmeaningof{\binpar{\phi}{\psi}}(v) \defneqls \{ P : \exists P_0, P_1.P \scong \binpar{P_0}{P_1}, \; P_0 \in \pmeaningof{\phi}(v), \;  P_1 \in \pmeaningof{\psi}(v) \}}
+  \and
+  \inferrule* {} {\pmeaningof{\pdropf{b}}(v) \defneqls \{ P : \exists x.P \scong {\dropn{x}}, \; x \in \nmeaningof{b}(v) \} }
+  \and
+  \inferrule* {} {\pmeaningof{\plift{a}{\phi}}(v) \defneqls \{ P : \exists P'.P \scong {\lift{x}{P'}}, \; x \in \nmeaningof{a}(v), \; P' \in \pmeaningof{\phi}(v) \}}
+  \and
+  \inferrule* {} {\pmeaningof{\pprefix{a}{b}{\phi}}(v) \defneqls \{ P : \exists P'.P \scong {\prefix{x}{y}{P'}}, x \in \nmeaningof{a}(v), \; \forall c . \exists z . {P'}\substn{z}{y} \in \pmeaningof{{\phi}\substn{c}{b}}(v) \} }
+  \and
+  \inferrule* {} {\pmeaningof{\pquant{n}{\psi}{\phi}}(v) \defneqls \cap_{x \in \nmeaningof{\quotep{\psi}}(v)} \pmeaningof{{\phi}\substn{x}{n}}(v)}
+  \and \\
+  \inferrule* {} {\pmeaningof{\pgfp{X}{\phi}}(v) \defneqls \cup \{ \mathcal{S} \subseteq \Proc : \mathcal{S} \subseteq \pmeaningof{\phi}(v\substn{\mathcal{S}}{X})\}} \\
+  \inferrule* {} {\nmeaningof{\pquotep{\phi}}(v) \defneqls \{ x : x \nameeq \quotep{P}, P \in \pmeaningof{\phi}(v) \}}
+  \and
+  \inferrule* {} {\nmeaningof{\pquotep{P}}(v) \defneqls \{ x : x \nameeq  \quotep{P} \}}
+\end{mathpar}
 
 We say $P$ witnesses $\phi$ (resp., $x$ witnesses $\pquotep{\phi}$),
 written $P \models \phi$ (resp., $x \models \pquotep{\phi}$) just when
@@ -1213,139 +1169,6 @@ conversation about policy, object capabilities and types.
 
 % ------------------------------------------------------------------------
 
-\section{Appendix: $\rho$-calculus sugar}
-
-It is known that replication (and hence recursion) can be implemented
-in a higher-order process algebra \cite{SangiorgiWalker}. This
-encoding provides a good example of calculation with the {\rhoc}.
-
-% \begin{equation*}
-% !P \defneqls \lift{x}{(x\id{(}y\id{)}\concat(\rpquote y\lpquote \juxtap x\id{[}y\id{]}) \juxtap P)} \juxtap x\id{(}z\id{)}\concat(\rpquote z\lpquote \juxtap x\id{[}z\id{]})
-% \end{equation*}
-
-\begin{equation*}
-  \begin{aligned}
-    & D(x) \defneqls \prefix{x}{y}{(\binpar{\outputp{x}{y}}{\dropn{y}})} \\
-    & \xbangp{P}{x} \defneqls \binpar{\lift{x}{\binpar{D(x)}{P}}}{D(x)} \\
-  \end{aligned}
-\end{equation*}
-
-% \begin{eqnarray*}
-% 	\xbangp{P}{x} & & \\
-% 	=
-% 	& \lift{x}{(\prefix{x}{y}{(\outputp{x}{y} \juxtap \dropn{y})) \juxtap P}} 
-% 	      \juxtap \prefix{x}{y}{(\outputp{x}{y} \juxtap \dropn{y})} & \\
-% %	\red
-% %	& \outputp{x}{\quotep{(\prefix{x}{y}{(\outputp{x}{y} \juxtap \dropn{y})) \juxtap P}}}
-% %	  \juxtap \prefix{x}{y}{(\outputp{x}{y} \juxtap \dropn{y})} & \\
-% 	\red
-% 	& (\outputp{x}{y} \juxtap \dropn{y})\substn{\quotep{(\prefix{x}{y}{(\dropn{y} \juxtap \outputp{x}{y})) \juxtap P}}}{y} & \\
-% 	=
-% 	& \outputp{x}{\quotep{(\prefix{x}{y}{(\outputp{x}{y} \juxtap \dropn{y})) \juxtap P}}}
-% 	  \juxtap {(\prefix{x}{y}{(\outputp{x}{y} \juxtap \dropn{y})) \juxtap P}} & \\
-% 	\red
-% 	& \ldots & \\
-% 	\red^*
-% 	& P \juxtap P \juxtap \ldots & \\
-% \end{eqnarray*}
-\begin{equation*}
-  \begin{aligned}
-    & \xbangp{P}{x} \\
-    & = \\
-    & \lift{x}{(\prefix{x}{y}{(\outputp{x}{y} \juxtap \dropn{y})) \juxtap P}} 
-    \juxtap \prefix{x}{y}{(\outputp{x}{y} \juxtap \dropn{y})} \\
-    & \red  \\
-    & (\outputp{x}{y} \juxtap \dropn{y})\substn{\quotep{(\prefix{x}{y}{(\dropn{y} \juxtap \outputp{x}{y})) \juxtap P}}}{y} \\
-    & = \\
-    & \outputp{x}{\quotep{(\prefix{x}{y}{(\outputp{x}{y} \juxtap \dropn{y})) \juxtap P}}} \\
-    & \;\;\;\;\;\juxtap {(\prefix{x}{y}{(\outputp{x}{y} \juxtap \dropn{y})) \juxtap P}} \\
-    & \red \\
-    & \ldots \\
-    & \red^* \\
-    & P \juxtap P \juxtap \ldots & \\
-  \end{aligned}
-\end{equation*}
-
-Of course, this encoding, as an implementation, runs away, unfolding
-$\xbangp{P}{x}$ eagerly. A lazier and more implementable replication
-operator, restricted to input-guarded processes, may be obtained as follows.
-
-\begin{equation*}
-\bangxp{\prefix{u}{v}{P}}{x}
-	\defneqls 
-	\binpar{\lift{x}{\prefix{u}{v}{(\binpar{D(x)}{P})}}}{D(x)}
-\end{equation*}
-
-It is worth noting that the combination of reference and dereference
-operators is essential to get computational completeness. 
-
-Armed with this we can consider a conservative extension of the
-calculus presented above.
-
-\begin{grammar}
-{ P, Q } \bc \ldots \\
-\;\;\; \bm \; (\texttt{def} {X}{( y_1, \ldots, y_N )} \Rightarrow {P}){( Q_1, \ldots, Q_N )} \\ 
-\;\;\; \bm \; {X}{( Q_1, \ldots, Q_N )} \\
-\;\;\; \bm \; \texttt{new}( x_1, \ldots, x_N )P \\
-\end{grammar}
-
-The notation for recursive definitions is slightly quirky in that it
-simultaneously defines and invokes the definition to some arguments --
-in order to make the recursive form be a process expression, as
-opposed to a separate category of declaration. Comparing this with the
-examples above we have simply omitted the application of the recursive
-definitions to initial arguments in the interest of brevity.
-
-\begin{equation*}
-  \begin{aligned}
-    & (\texttt{def} {X}{( y_1, \ldots, y_N )} \Rightarrow {P}){( Q_1, \ldots, Q_N )} \defneqls \\
-    & \;\;\;\binpar{\bangxp{(n( X, P ) \Rightarrow P')}{n( X, P )}}{n( X, P )!( Q_1, \ldots, Q_N )} \\  
-  \end{aligned}
-\end{equation*}
-
-where $P' \defneqls P \{ n( X, P )!( Q_1, \ldots, Q_N )/ X( Q_1,
-\ldots, Q_N )\}$, i.e., the body of $P$ in which every occurrence of
-
-$X( Q_1, \ldots, Q_N )$
-
-is replaced with $n( X, P )!( Q_1, \ldots, Q_N
-)$, and $n( X, P )$ generates a name from $X$ guaranteed fresh in $P$.
-
-Likewise, there are several translation of the \pic\; $\texttt{new}$
-operator into the \rhoc. Rather than take up space in this paper we
-simply refer the reader to \cite{DBLP:journals/entcs/MeredithR05}, or
-better yet, invite them to come up with a definition to test their
-understanding of the calculus.
-
-Additionally, we call out input-guarded only summations using the notation
-
-\begin{lstlisting}[mathescape]
-  match { 
-   $x_1?( y_{1,1}, \ldots, y_{1,N} ) \Rightarrow P_1 $
-   $ \ldots $
-   $x_M?(y_{M,1}, \ldots, y_{M,N'} ) \Rightarrow P_M $ 
-  }
-\end{lstlisting}
-
-\noindent instead of 
-
-$x_1?( y_{1,1}, \ldots, y_{1,N} ) \Rightarrow P_1 + \ldots + x_M?( y_{M,1},\ldots, y_{M,N'} ) \Rightarrow P_M$
-
-In a \texttt{match} context we avail ourselves of a pattern-matching
-syntax, such as $x ? get( ret ) \Rightarrow ret!( v )$ and $x ! get( k
-)$. Again, encodings are quite standard, e.g. see
-\cite{Brown05piduce:a}.
-
-Finally, we use $\{ \ldots \}$ for grouping expressions and in more complex examples, omit
-$\binpar{}{}$ in favor of line breaks for legibility. Thus, an expression for a classic race-condition $\binpar{ x?( y_1, \ldots, y_N ) \Rightarrow P}{\binpar{x!( Q_1, \ldots, Q_N )}{ x?( z_1, \ldots, z_N ) \Rightarrow R}}$ might be written
-\begin{lstlisting}[mathescape]
-  {
-    $x?( y_1, ... , y_N ) \Rightarrow P$
-    $x!( Q_1, ... , Q_N )$
-    $x?( z_1, ... , z_N ) \Rightarrow R$
-  }
-\end{lstlisting}
-
 \section{Appendix: bisimulation}
 
 Having taken the notion of restriction out of the language, we
@@ -1366,20 +1189,18 @@ capability-safe.  However, in Section \ref{namespace} below, we show
 that we can use types to create namespaces and then statically prove
 which namespaces a process has access to.
 
-% [Ed. note: suppose c is not in a barb set, can we make hidden links in
-% programs? Does this screw up the notion of a parameterized barbed
-% bisimulation?]
-%will become clearer when we treat the encoding of the asynchronous {\pic}.
-
 \begin{defn}
 An \emph{observation relation}, $\downarrow_{\mathcal N}$, over a set
 of names, $\mathcal N$, is the smallest relation satisfying the rules
 below.
 
-\infrule[Out-barb]{y \in {\mathcal N}, \; x \nameeq y}
+\begin{mathpar}
+\inferrule* [lab=Out-barb]{y \in {\mathcal N}, \; x \nameeq y}
 		  {\outputp{x}{v} \downarrow_{\mathcal N} x}
-\infrule[Par-barb]{\mbox{$P\downarrow_{\mathcal N} x$ or $Q\downarrow_{\mathcal N} x$}}
+\and
+\inferrule* [lab=Par-barb]{\mbox{$P\downarrow_{\mathcal N} x$ or $Q\downarrow_{\mathcal N} x$}}
 		  {\binpar{P}{Q} \downarrow_{\mathcal N} x}
+\end{mathpar}
 
 We write $P \Downarrow_{\mathcal N} x$ if there is $Q$ such that 
 $P \wred Q$ and $Q \downarrow_{\mathcal N} x$.
