@@ -357,8 +357,7 @@ Sophia Drossopoulou
   argue persuasively for the need for a means to express policy in
   object-capability-based systems. We investigate a practical means to
   realize their aim via the Curry-Howard isomorphism
-  \cite{Abramsky:1992:PP:194588.194591}
-  \cite{Krivine-TheCurryHowardCorre}. Specifically, we investigate
+  \cite{Abramsky:1992:PP:194588.194591}. Specifically, we investigate
   representing policy as types in a behavioral type system for the
   \rhoc\; \cite{DBLP:conf/tgc/MeredithR05}, a reflective higher-order
   variant of the \pic\; \cite{milner91polyadicpi}.
@@ -429,35 +428,28 @@ condition), and that this property is satisfied by all extensions of
 the account library (open). In contrast, classical Hoare Logic
 specifications \cite{Hoare:1969:ABC:363235.363259} describe sufficient
 conditions and are closed.  In this paper we concentrate on the use of
-the {\rhoc} \cite{DBLP:conf/tgc/MeredithR05} \footnote{the
-  \emph{R}eflective \emph{H}igher-\emph{O}rder calculus, not to
-  be confused with the $\rho$-calculus
-  \cite{CirsteaFaureKirchnerWLRA2004}} for expressing deniability. To
-express necessary conditions, we invert the assertion and use
-bisimulation (e.g. any piece of code which does not have access to the
-account will be bisimilar to code in which the balance of the account
-is not modified). To express openness, we adapt the concept of the
-adjoint to the separation operator, i.e. any further code P which is
-attached to the current code will be bisimilar to P in parallel with
-code which does not modify the balance of the account.
+the {\rhoc} \cite{DBLP:conf/tgc/MeredithR05} for expressing
+deniability. To express necessary conditions, we invert the assertion
+and use bisimulation (e.g. any piece of code which does not have
+access to the account will be bisimilar to code in which the balance
+of the account is not modified). To express openness, we adapt the
+concept of the adjoint to the separation operator, i.e. any further
+code P which is attached to the current code will be bisimilar to P in
+parallel with code which does not modify the balance of the account.
 
-In short, we show that the \rhoc\; is an ocap language and sketch a
-translation from a subset of JavaScript into the calculus; we also
-demonstrate that the corresponding Hennessy-Milner logic suffices to
-capture the key notion of deniability.
-
-In the larger scheme, this identifies
+In short, we show that the \rhoc\; is an ocap language and demonstrate
+that the corresponding Hennessy-Milner logic suffices to capture the
+key notion of deniability. In the larger scheme, this identifies
 \cite{Drossopoulou:2013:NCP:2489804.2489811}'s notion of policy with
-the proposition-as-types paradigm, also known as The Curry-Howard isomorphism
-\cite{Abramsky:1992:PP:194588.194591}
-\cite{Krivine-TheCurryHowardCorre}. The Curry-Howard isomorphism
+the proposition-as-types paradigm, also known as The Curry-Howard
+isomorphism \cite{Abramsky:1992:PP:194588.194591}. The Curry-Howard isomorphism
 relates formal logic to type theory; it says that propositions are to
 types as proofs are to programs.  Hennessy-Milner logic lets us treat
 the type of a concurrent process as an assertion that it belongs to a
 set of processes, all of which satisfy some property.  We can treat
 these properties as contracts governing the behavior of the process
 \cite{Meredith:2003:CT:944217.944236}; in other words, the language of
-behavioral types suffices as a security policy language.
+behavioral types suffices as a security policy language for ocaps.
 
 \subsubsection{Organization of the rest of the paper}
 
@@ -473,7 +465,7 @@ work.
 
 \section{Interpreting capabilities}
 
-In \cite{Longform} we give a compositional interpretation of (a
+In \cite{DBLP:Journals/Corr/MeredithSD13} we give a compositional interpretation of (a
 fragment of) Javascript sufficient to encode the central examples of
 Drossopoulou and Noble's paper in the $\rhoc$. Essentially,
 capabilities are interpreted as channels. In ordinary process calculi
@@ -485,9 +477,9 @@ and channels and hence capabilities.
 
 Before giving the formal presentation of the calculus and logic where
 we interpret ocap programs and policy, respectively, we begin with a
-couple of examples that illustrate a design pattern used over and over
-in this paper. The first is a mutable single-place cell for storing
-and retrieving state.
+simple example that illustrate a design pattern used over and over in
+this paper. Here is a mutable single-place cell for storing and
+retrieving state.
 
 \begin{lstlisting}[mathescape]
 def $Cell( slot, state ) \Rightarrow$ {
@@ -509,42 +501,19 @@ channel; then it resumes behaving as a $Cell$. Alternatively, if it
 receives a $set$ message containing some new state $s$, it simply
 continues as a $Cell$ instantiated with accessor $slot$ and state $s$.
 
-Despite the fact that this example bears a striking resemblance to code
-in any of a number of popular libraries, notably the {\tt AKKA}
-library for the {\tt Scala} language, it is only a mildly sugared
-form of the direct representation in our calculus. Notice also that
-like modern application code, it exhibits encapsulation and separation
-of implementation from API: a cell's internal access to
-{\tt state} is kept in a private channel {\tt v} while
-external access is through {\tt slot}. Another nice thing about
-this design pattern is that it scales through composition: when
-translating ocap examples expressed in {\tt ECMAScript} to \rhoc\;
-we will effectively treat the state of an object as a parallel
-composition of cells comprising its state.
-
-The second gadget is an immutable map:
-
-\begin{lstlisting}[mathescape]
-  def $Map( chan, key_1, state_1, \ldots , key_n, state_n ) \Rightarrow$ {
-  new $( v_1, \ldots v_n)$ {
-    $v_1!( state_1 )$ | $\ldots$ | $v_n!( state_n )$
-    $chan ? get( key_1, ret ) \Rightarrow$ { $v_1?( x ) \Rightarrow
-ret!( x )$ | $Map( chan, key_1, state_1, \ldots , key_n, state_n )$ }
-    $\ldots$
-    $chan ? get( key_n, ret ) \Rightarrow$ { $v_n?( x ) \Rightarrow
-ret!( x )$ | $Map( chan, key_1, state_1, \ldots , key_n, state_n )$ }
-  }
-}
-\end{lstlisting}
-
-The design pattern for maps is related to the one for cells, but is
-missing the capability to mutate the map. The code does not serve a
-request to set any of the values it contains. With these two patterns
-in hand it will be much easier to treat the examples. Moreover, as we
-will see in the sequel, even with these basic patterns we can already
-reason about policy.  The shape of the reasoning about policy for these
-examples scales compositionally to reasoning about application-level
-policy.
+Despite the fact that this example bears a striking resemblance to
+code in any of a number of popular libraries, notably the {\tt AKKA}
+library for the {\tt Scala} language, it is only a mildly sugared form
+of the direct representation in our calculus. Notice also that like
+modern application code, it exhibits encapsulation and separation of
+implementation from API: a cell's internal access to {\tt state} is
+kept in a private channel {\tt v} while external access is through
+{\tt slot}. Likewise this design pattern scales through composition:
+when translating ocap examples expressed in {\tt ECMAScript} to
+\rhoc\; we treat the state of an object as a parallel composition of
+cells comprising its state. The interested reader is invited to see
+\cite{DBLP:Journals/Corr/MeredithSD13} for more examples and details
+of the translation.
 
 \subsubsection{The \rhoc}
 
@@ -583,7 +552,7 @@ standard) syntactic sugar: \texttt{def} making recursive definitions a
 little more convenient than their higher-order encodings, \texttt{new}
 making fresh channel allocation a little more convenient and
 \texttt{match} for purely input-guarded choice. The interested
-reader is directed to \cite{Longform} for more details.
+reader is directed to \cite{DBLP:Journals/Corr/MeredithSD13} for more details.
 
 The syntax has been chosen so that a binding occurrence of a name is
 sandwiched between round braces, ${(} \cdot {)}$. Thus, the
@@ -664,37 +633,59 @@ of $P$ from the output-guarded data, $x{!}{(}{P}{)}$, and then reduces
 to a new process the body of which is rewritten to include $P$,
 ${w}{!}{(}{y}{!}{(}P{)}{)}$.
 
-One of the central features of process calculi, referred to in the
-literature as bisimulation, is an effective notion of
-substitutability, i.e. when one process can be substituted for
-another, and with it a range of powerful proof techniques. For this
-paper we focus principally on the use of logic to interpret policy and
-so move a discussion of bisimulation to an appendix. The main theorem
-of the next section relates the logic to bisimulation. The reader
-unfamiliar with this important aspect of programming language
-semantics is strongly encouraged to look at
-\cite{DBLP:LNCS/Sangiorgi06}.
+Bisimulation, one of the central features of process calculi provides
+an effective notion of substitutability together with a range of
+powerful proof techniques. For this paper we focus principally on the
+use of logic to interpret policy and thus need connect the ideas of
+logical equivalence and bisimulation. The main theorem of the next
+section relates the logic to bisimulation. Meanwhile, the experienced
+reader should note that the set of names of the {\rhoc} is
+\textit{global}. It is impossible, in the grammar of processes, to
+guard terms from being placed into contexts that can potentially
+observe communication, so we provide a place for reasoning about such
+limitations on the scope of observation in the theory of bisimulation.
+
+\begin{defn}
+An \emph{observation relation}, $\downarrow_{\mathcal N}$, over a set
+of names, $\mathcal N$, is the smallest relation satisfying the rules
+below.
+
+\begin{mathpar}
+\inferrule* [lab=Out-barb]{y \in {\mathcal N}, \; x \nameeq y}
+		  {\outputp{x}{v} \downarrow_{\mathcal N} x}
+\and
+\inferrule* [lab=Par-barb]{\mbox{$P\downarrow_{\mathcal N} x$ or $Q\downarrow_{\mathcal N} x$}}
+		  {\binpar{P}{Q} \downarrow_{\mathcal N} x}
+\end{mathpar}
+
+We write $P \Downarrow_{\mathcal N} x$ if there is $Q$ such that 
+$P \wred Q$ and $Q \downarrow_{\mathcal N} x$.
+\end{defn}
+
+\begin{defn}
+%\label{def.bbisim}
+An  ${\mathcal N}$-\emph{barbed bisimulation} over a set of names, ${\mathcal N}$, is a symmetric binary relation 
+${\mathcal S}_{\mathcal N}$ between agents such that $P\rel{S}_{\mathcal N}Q$ implies:
+\begin{enumerate}
+\item If $P \red P'$ then $Q \wred Q'$ and $P'\rel{S}_{\mathcal N} Q'$.
+\item If $P\downarrow_{\mathcal N} x$, then $Q\Downarrow_{\mathcal N} x$.
+\end{enumerate}
+$P$ is ${\mathcal N}$-barbed bisimilar to $Q$, written
+$P \wbbisim_{\mathcal N} Q$, if $P \rel{S}_{\mathcal N} Q$ for some ${\mathcal N}$-barbed bisimulation ${\mathcal S}_{\mathcal N}$.
+\end{defn}
 
 \section{Interpreting policy}
 
-Drossopoulou and Noble \cite{Drossopoulou:2013:NCP:2489804.2489811} argue for
-several different types of policy specifications. In this paper we
-focus on deniability policies, since the others have ready
-translations in this setting. Deniability is the one type of policy
-specification where the translation is not at all straightforward. For
-the reader familiar with logics of concurrency the core idea is to use
-rely-guarantee combined with the adjunct to spatial separation.
-
-A visual inspection of the code for $Cell$ reveals that if a process
-$P$'s names are fresh with respect to $slot$, then $P$ cannot directly
-affect any $Cell( slot, state )$. Unfortunately, visual inspection is
-not reliable in settings only mildly more complex, as in the bank
-example in \cite{Drossopoulou:2013:NCP:2489804.2489811}; Yee reports
-that a 90-man-hour review of around a hundred lines of heavily
-commented Python code by security specialists was not sufficient to
-discover three inserted bugs \cite[Section 7]{Yee:EECS-2007-136}.
-However, we can use the logic presented below to state and verify the
-fact that $P$ cannot affect any {\tt Cell}.
+In this section we present enough of namespace logic to interpret
+deniability policy specification. For the reader familiar with logics
+of concurrency the core idea is to use rely-guarantee combined with
+the adjunct to spatial separation. Pragmatically, a visual inspection
+of the code for $Cell$ reveals that if a process $P$'s names are fresh
+with respect to $slot$, then $P$ cannot directly affect any $Cell(
+slot, state )$. Unfortunately, visual inspection is not reliable in
+settings only mildly more complex; however, we can use the logic
+presented below to state and verify the fact that $P$ cannot affect
+any {\tt Cell} and then scale the approach to wider settings.
 
 \subsection{Namespace logic}
 Namespace logic resides in the subfamily of Hennessy-Milner logics
@@ -908,33 +899,24 @@ closed-world and open-world formulations of deniability.
 
 \section{Conclusions and future work}
 
-The bulk of our work in modeling deniability policies as
-rely-guarantee formulae in a logic with separation was in setting up
-the calculi and logic. Once these are absorbed, the actual model is
-short and to the point. We take this as evidence that the approach is
-natural and commensurate with the expressiveness demands of
-deniability style policies.
+We take the simplicity and flexibility of separating cells from
+environments as evidence that the approach is natural and commensurate
+with the expressiveness demands of policy in an ocap setting. We are
+also interested in what this interpretation says specifically about
+deniability style policies. In this connection it is important to note
+that a lot is already known about the complexity characteristics of
+spatial-behavioral logics. An interpretation of deniability via
+rely-guarantee suggests suggests to is a very powerful policy
+construct for as \cite{Caires04eliminationof} note the addition
+of the adjunct to separation is not a conservative extension!
 
-In this connection it is important to note that a lot is already known
-about the complexity characteristics of spatial-behavioral
-logics. Interpreting ocap policy in this setting, therefore, has the
-further advantage that we are able to classify policy statements that
-are potentially too hard to check automatically, or even check at
-all. To wit, \cite{Caires04eliminationof} note that the addition of
-the adjunct to separation is not a conservative extension!
-
-In developing this approach we uncovered several situations where
-value-dependent policies were of interest or importance. This suggests
-that some sort of dependent types may be necessary for addressing more
-realistic examples.
-
-Finally, source code for implementations of an interpreter for the
-{\rhoc} and a model-checker for namespace logic are available upon
-request and a more industrial scale version of the core concepts are
-used heavily in the \texttt{SpecialK} library available on
-\texttt{github} \cite{SpecialK}. This library is already in use in
-industrial projects such as the Protunity Business Matching Network
-\cite{Protunity}.
+For the interested reader, source code for implementations of an
+interpreter for the {\rhoc} and a model-checker for namespace logic
+are available upon request and a more industrial scale version of the
+core concepts are used heavily in the \texttt{SpecialK} library
+available on \texttt{github} \cite{SpecialK}. This library is already
+in use in industrial projects such as the Protunity Business Matching
+Network \cite{Protunity}.
 
 \paragraph{Acknowledgments.}
 The authors wish to thank Mark Miller for thoughtful and stimulating
@@ -944,92 +926,10 @@ conversation about policy, object capabilities and types.
 %GATHER{Xbib.bib}   % For Gather Purpose Only
 %GATHER{Paper.bbl}  % For Gather Purpose Only
 \bibliographystyle{amsplain}
-\bibliography{tocappi}
+\bibliography{beat2014}
 
 % ------------------------------------------------------------------------
 
-\section{Appendix: bisimulation}
-
-Having taken the notion of restriction out of the language, we
-carefully place it back into the notion of observation, and hence into
-the notion of program equality, {\em i.e.} bisimulation. That is, we
-parameterize the notion of barbed bisimulation by a set of names over
-which we are allowed to set the barbs. The motivation for this choice
-is really comparison with other calculi. The set of names of the
-{\rhoc} is \textit{global}. It is impossible, in the grammar of
-processes, to guard terms from being placed into contexts that can
-potentially observe communication, so we provide a place for
-reasoning about such limitations on the scope of observation in the
-theory of bisimulation.
-
-From an ocap perspective, having the ability to enumerate names is
-usually a sign that a language is not even memory-safe, let alone
-capability-safe.  However, in Section \ref{namespace} below, we show
-that we can use types to create namespaces and then statically prove
-which namespaces a process has access to.
-
-\begin{defn}
-An \emph{observation relation}, $\downarrow_{\mathcal N}$, over a set
-of names, $\mathcal N$, is the smallest relation satisfying the rules
-below.
-
-\begin{mathpar}
-\inferrule* [lab=Out-barb]{y \in {\mathcal N}, \; x \nameeq y}
-		  {\outputp{x}{v} \downarrow_{\mathcal N} x}
-\and
-\inferrule* [lab=Par-barb]{\mbox{$P\downarrow_{\mathcal N} x$ or $Q\downarrow_{\mathcal N} x$}}
-		  {\binpar{P}{Q} \downarrow_{\mathcal N} x}
-\end{mathpar}
-
-We write $P \Downarrow_{\mathcal N} x$ if there is $Q$ such that 
-$P \wred Q$ and $Q \downarrow_{\mathcal N} x$.
-\end{defn}
-
-Notice that $\prefix{x}{y}{P}$ has no barb.  Indeed, in {\rhoc} as well
-as other asynchronous calculi, an observer has no direct means to
-detect if a sent message has been received or not.
-
-\begin{defn}
-%\label{def.bbisim}
-An  ${\mathcal N}$-\emph{barbed bisimulation} over a set of names, ${\mathcal N}$, is a symmetric binary relation 
-${\mathcal S}_{\mathcal N}$ between agents such that $P\rel{S}_{\mathcal N}Q$ implies:
-\begin{enumerate}
-\item If $P \red P'$ then $Q \wred Q'$ and $P'\rel{S}_{\mathcal N} Q'$.
-\item If $P\downarrow_{\mathcal N} x$, then $Q\Downarrow_{\mathcal N} x$.
-\end{enumerate}
-$P$ is ${\mathcal N}$-barbed bisimilar to $Q$, written
-$P \wbbisim_{\mathcal N} Q$, if $P \rel{S}_{\mathcal N} Q$ for some ${\mathcal N}$-barbed bisimulation ${\mathcal S}_{\mathcal N}$.
-\end{defn}
-
-% \emph{Barbed congruence}, written $\fwbeq_{\mathcal N}$, is the largest
-% ${\mathcal N}$-barbed bisimulation which is also a congruence.
-% \end{defn}
-
-% \begin{rem}
-% 	Asking for congruence including contexts of the form
-% 	$\lift{x}{\diamond}$ requires that $P \wbbisim Q$ implies that
-% 	$\quotep{P} \nameeq \quotep{Q}$. This is too
-% 	stringent. Instead we seek a weaker form of equivalence,
-% 	closed only up to substitions.
-% \end{rem}
-
-% \begin{defn}
-% $P$ is \emph{barbed equivalent} to $Q$, written $P \wbeq Q$, if and only if $P \sigma \parop R \wbbisim Q \sigma 
-% \parop R$, for every $R$ and substitution $\sigma$.
-% \end{defn}
-
-% It is well-known that, due to the universal quantification over
-% contexts, barbed congruence is hard to demonstrate.  A standard remedy
-% mitigating this difficulty is the context lemma below.
-
-% \begin{lem}
-% %\label{contextlemma}
-% $P \wbeq Q$ if and only if $P \sigma \parop R \wbbisim Q \sigma 
-% \parop R$, for every $R$ and substitution $\sigma$.
-% \end{lem}
-% This lemma replaces the quantification over contexts 
-% with a quantification over parallel contexts and substitutions, which
-% is still hard to verify. 
 
 % ------------------------------------------------------------------------
 
