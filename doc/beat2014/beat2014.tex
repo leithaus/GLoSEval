@@ -398,16 +398,15 @@ authority such as the global variables in JavaScript,
 static mutable fields in Java and C\#, or allowing access to arbitrary objects
 through pointer arithmetic as in C and C++.
 
-The electronic society is moving steadily towards the object capability model.
-ECMAScript 5, the standard version of JavaScript adopted by all modern
-browsers, introduced a new security API that enables the web browser to
-be turned into an ocap-safe platform; Google's Caja project is an implementation
-\cite{Caja:2013}.  Brendan Eich, CTO of Mozilla, wrote, ``In SpiderMonkey + Gecko in 
-Firefox, and probably in other browsers, we actually use OCap under the hood 
-and have for years. In HTML5, the WindowProxy/Window distinction was finally 
-specified, as an ad-hoc instance of OCap membranes.  Any time we deviate from 
-OCap, we regret it for both security bug and access-checking overhead reasons.''
-\cite{Eich:2013}
+The electronic society is moving steadily towards the object
+capability model.  ECMAScript 5, the standard version of JavaScript
+adopted by all modern browsers, introduced a new security API that
+enables the web browser to be turned into an ocap-safe platform;
+Google's Caja project is an implementation \cite{Caja:2013}.  Brendan
+Eich, CTO of Mozilla, wrote, ``In SpiderMonkey + Gecko in Firefox, and
+probably in other browsers, we actually use OCap under the hood and
+have for years. $\ldots$ Any time we deviate from OCap, we regret it for both
+security bug and access-checking overhead reasons.''  \cite{Eich:2013}
 
 We would like a way to declare the authority that an object ought to
 possess and then check whether the implementation matches the intent;
@@ -437,29 +436,20 @@ concept of the adjoint to the separation operator, i.e. any further
 code P which is attached to the current code will be bisimilar to P in
 parallel with code which does not modify the balance of the account.
 
-In short, we show that the \rhoc\; is an ocap language and demonstrate
-that the corresponding Hennessy-Milner logic suffices to capture the
-key notion of deniability. In the larger scheme, this identifies
+In short, we extend the usual interpretation of $\pi$-calculus as an
+ocap language to the \rhoc\; and demonstrate that the corresponding
+Hennessy-Milner logic suffices to capture the key notion of
+deniability. In the larger scheme, this identifies
 \cite{Drossopoulou:2013:NCP:2489804.2489811}'s notion of policy with
 the proposition-as-types paradigm, also known as The Curry-Howard
-isomorphism \cite{Abramsky:1992:PP:194588.194591}. The Curry-Howard isomorphism
-relates formal logic to type theory; it says that propositions are to
-types as proofs are to programs.  Hennessy-Milner logic lets us treat
-the type of a concurrent process as an assertion that it belongs to a
-set of processes, all of which satisfy some property.  We can treat
-these properties as contracts governing the behavior of the process
-\cite{Meredith:2003:CT:944217.944236}; in other words, the language of
-behavioral types suffices as a security policy language for ocaps.
-
-\subsubsection{Organization of the rest of the paper}
-
-We introduce the calculus. So equipped we illustrate translating a
-simple ocap example into the calculus. Next, we introduce the logic,
-and illustrate how we can reason about properties of the translated
-program and from there move to interpreting policy, focusing on
-deniability. Finally, we conclude with a discussion of some of the
-limitations of the approach and how we might approach these in future
-work.
+isomorphism \cite{Abramsky:1992:PP:194588.194591}. The Curry-Howard
+isomorphism relates formal logic to type theory; it says that
+propositions are to types as proofs are to programs.  Hennessy-Milner
+logic lets us treat the type of a concurrent process as an assertion
+that it belongs to a set of processes, all of which satisfy some
+property.  We can treat these properties as contracts governing the
+behavior of the process; in other words, the language of behavioral
+types suffices as a security policy language for ocaps.
 
 %%% ----------------------------------------------------------------------
 
@@ -470,7 +460,7 @@ fragment of) Javascript sufficient to encode the central examples of
 Drossopoulou and Noble's paper in the $\rhoc$. Essentially,
 capabilities are interpreted as channels. In ordinary process calculi
 channels have no observable internal structure. In the calculus
-presented here, they do providing a means to reason about collections
+presented here they do, providing a means to reason about collections
 and channels and hence capabilities. 
 
 \subsection{The calculus}
@@ -502,11 +492,10 @@ receives a $set$ message containing some new state $s$, it simply
 continues as a $Cell$ instantiated with accessor $slot$ and state $s$.
 
 Despite the fact that this example bears a striking resemblance to
-code in any of a number of popular libraries, notably the {\tt AKKA}
-library for the {\tt Scala} language, it is only a mildly sugared form
-of the direct representation in our calculus. Notice also that like
-modern application code, it exhibits encapsulation and separation of
-implementation from API: a cell's internal access to {\tt state} is
+code in any of a number of popular programming libraries, it is only a
+mildly sugared form of the direct representation in our calculus; and
+like modern application code, it exhibits encapsulation and separation
+of implementation from API: a cell's internal access to {\tt state} is
 kept in a private channel {\tt v} while external access is through
 {\tt slot}. Likewise this design pattern scales through composition:
 when translating ocap examples expressed in {\tt ECMAScript} to
@@ -554,9 +543,7 @@ making fresh channel allocation a little more convenient and
 \texttt{match} for purely input-guarded choice. The interested
 reader is directed to \cite{DBLP:Journals/Corr/MeredithSD13} for more details.
 
-The syntax has been chosen so that a binding occurrence of a name is
-sandwiched between round braces, ${(} \cdot {)}$. Thus, the
-calculation of the free names of a process, $P$, denoted
+The calculation of the free names of a process, $P$, denoted
 $\freenames{P}$ is given recursively by
 
 \begin{mathpar}
@@ -682,10 +669,9 @@ of concurrency the core idea is to use rely-guarantee combined with
 the adjunct to spatial separation. Pragmatically, a visual inspection
 of the code for $Cell$ reveals that if a process $P$'s names are fresh
 with respect to $slot$, then $P$ cannot directly affect any $Cell(
-slot, state )$. Unfortunately, visual inspection is not reliable in
-settings only mildly more complex; however, we can use the logic
-presented below to state and verify the fact that $P$ cannot affect
-any {\tt Cell} and then scale the approach to wider settings.
+slot, state )$. We can use the logic presented below to state and
+verify the fact that $P$ cannot affect any {\tt Cell} and then
+generalize and scale the approach to wider settings.
 
 \subsection{Namespace logic}
 Namespace logic resides in the subfamily of Hennessy-Milner logics
@@ -694,25 +680,15 @@ known as spatial logics, discovered by Caires and Cardelli
 modalities, we also find at the logical level formulae for
 \emph{separation} corresponding to the structural content of the
 parallel operator at the level of the calculus. Likewise, we have
-quantification over names. There are important differences between the
-logic presented here and Caires' logic. The interested reader is
-referred to \cite{DBLP:conf/tgc/MeredithR05}.
+quantification over names. 
 
-\subsubsection{Controlling access to namespaces}
-\label{namespace}
-
-A principal advantage to using logical formulae of this kind is that
-they denote classes or programs. Unlike the usual notion of type,
-where a type's inhabitants are instances of data structures, in
-namespace logic a formula (i.e. a \emph{type}) $\phi$ is inhabited by
-programs---namely all the programs that satisfy the
-formulae. Namespace logic takes this a step further. Because it is
-built on a reflective programming language (the \rhoc) it also has
-formulae, $\pquotep{\phi}$, for describing classes of names. Said
-another way, the inhabitants of types of the form $\pquotep{\phi}$ are
-names and hence these types have the right to be called
-namespaces. The next two examples show how useful namespaces are in
-the security setting.
+There are important differences between the logic presented here and
+Caires' logic. Because it is built on a reflective programming language
+(the \rhoc) it also has formulae, $\pquotep{\phi}$, for describing
+classes of names. Said another way, the inhabitants of types of the
+form $\pquotep{\phi}$ are names and hence these types have the right
+to be called namespaces \cite{DBLP:conf/tgc/MeredithR05}. The next two
+examples show how useful namespaces are in the security setting.
 
 Suppose that $\pquotep{\phi}$ describes some namespace, {\em i.e.}
 some collection of names. We can insist that a process restrict its
@@ -755,7 +731,13 @@ especially in the context of deniability.
   \inferrule* [lab=Name] {} {{b} \bc \pquotep{P} \;|\; n}
 \end{mathpar} 
 
-We let $\PFormula$ denote the set of formulae generated by the
+In the examples below, we freely employ the usual DeMorgan-based
+syntactic sugar. For example, $\phi \Rightarrow \psi \defneqls \neg (
+\phi \& \neg \psi )$ and $\phi \vee \psi \defneqls \neg ( \neg \phi \&
+\neg \psi )$. Also, when quantification ranges over all of $\QProc$,
+as in $\pquant{n}{\pquotep{\ptrue}}{\phi}$, we omit the typing for the
+quantification variable, writing $\pquantuntyped{n}{\phi}$. Further,
+we let $\PFormula$ denote the set of formulae generated by the
 $\phi$-production, $\QFormula$ denote the set of formulae generated by
 the $a$-production and $\PropVar$ denote the set of propositional
 variables used in the $\textsf{rec}$ production. Additionally, we let
@@ -794,16 +776,16 @@ returning a set of processes or a set of names, respectively.
   \and
   \inferrule* {} {\pmeaningof{\pzero}(v) \defneqls \{ P : P \scong \pzero \}}
   \and
-  \inferrule* {} {\pmeaningof{\binpar{\phi}{\psi}}(v) \defneqls \{ P : \exists P_0, P_1.P \scong \binpar{P_0}{P_1}, \; P_0 \in \pmeaningof{\phi}(v), \;  P_1 \in \pmeaningof{\psi}(v) \}}
+  \inferrule* {} {\pmeaningof{\binpar{\phi}{\psi}}(v) \defneqls \{ P : \exists P_0, P_1.P \scong \binpar{P_0}{P_1}, \; P_0 \in \pmeaningof{\phi}(v), \;  P_1 \in \pmeaningof{\psi}(v) \}} \\
   \and
   \inferrule* {} {\pmeaningof{\pdropf{b}}(v) \defneqls \{ P : \exists x.P \scong {\dropn{x}}, \; x \in \nmeaningof{b}(v) \} }
   \and
   \inferrule* {} {\pmeaningof{\plift{a}{\phi}}(v) \defneqls \{ P : \exists P'.P \scong {\lift{x}{P'}}, \; x \in \nmeaningof{a}(v), \; P' \in \pmeaningof{\phi}(v) \}}
   \and
   \inferrule* {} {\pmeaningof{\pprefix{a}{b}{\phi}}(v) \defneqls \{ P : \exists P'.P \scong {\prefix{x}{y}{P'}}, x \in \nmeaningof{a}(v), \; \forall c . \exists z . {P'}\substn{z}{y} \in \pmeaningof{{\phi}\substn{c}{b}}(v) \} }
-  \and
-  \inferrule* {} {\pmeaningof{\pquant{n}{\psi}{\phi}}(v) \defneqls \cap_{x \in \nmeaningof{\quotep{\psi}}(v)} \pmeaningof{{\phi}\substn{x}{n}}(v)}
   \and \\
+  \inferrule* {} {\pmeaningof{\pquant{n}{\psi}{\phi}}(v) \defneqls \cap_{x \in \nmeaningof{\quotep{\psi}}(v)} \pmeaningof{{\phi}\substn{x}{n}}(v)}
+  \and
   \inferrule* {} {\pmeaningof{\pgfp{X}{\phi}}(v) \defneqls \cup \{ \mathcal{S} \subseteq \Proc : \mathcal{S} \subseteq \pmeaningof{\phi}(v\substn{\mathcal{S}}{X})\}} \\
   \inferrule* {} {\nmeaningof{\pquotep{\phi}}(v) \defneqls \{ x : x \nameeq \quotep{P}, P \in \pmeaningof{\phi}(v) \}}
   \and
@@ -824,15 +806,6 @@ terminate. However there is a large class of interesting formulae for
 which the witness check does terminate, see
 \cite{DBLP:conf/fossacs/Caires04}. {\em Nota bene}: including
 separation makes the logic strictly more observant than bismulation.
-
-\subsubsection{Syntactic sugar }
-
-In the examples below, we freely employ the usual DeMorgan-based
-syntactic sugar. For example, $\phi \Rightarrow \psi \defneqls \neg (
-\phi \& \neg \psi )$ and $\phi \vee \psi \defneqls \neg ( \neg \phi \&
-\neg \psi )$. Also, when quantification ranges over all of $\QProc$,
-as in $\pquant{n}{\pquotep{\ptrue}}{\phi}$, we omit the typing for the
-quantification variable, writing $\pquantuntyped{n}{\phi}$.
 
 \subsection{Applications to policy}
 
@@ -886,16 +859,17 @@ closed-world and open-world formulations of deniability.
 
 \section{Conclusions and future work}
 
-We take the simplicity and flexibility of separating cells from
-environments as evidence that the approach is natural and commensurate
-with the expressiveness demands of policy in an ocap setting. We are
-also interested in what this interpretation says specifically about
-deniability style policies. In this connection it is important to note
-that a lot is already known about the complexity characteristics of
-spatial-behavioral logics. An interpretation of deniability via
-rely-guarantee suggests suggests to is a very powerful policy
-construct for as \cite{Caires04eliminationof} note the addition
-of the adjunct to separation is not a conservative extension!
+We take the simplicity and flexibility of separating cells (and
+compositions of cells) from environments as evidence that the approach
+is natural and commensurate with the expressiveness demands of policy
+in an ocap setting. We are also interested in what this interpretation
+says specifically about deniability style policies. In this connection
+it is important to note that a lot is already known about the
+complexity characteristics of spatial-behavioral logics. An
+interpretation of deniability via rely-guarantee suggests suggests to
+is a very powerful policy construct for as
+\cite{Caires04eliminationof} note the addition of the adjunct to
+separation is not a conservative extension!
 
 For the interested reader, source code for implementations of an
 interpreter for the {\rhoc} and a model-checker for namespace logic
